@@ -32,11 +32,6 @@ class AeroSphereComp(om.ExplicitComponent):
                        units='m/s',
                        desc="body z velocity")
         
-        self.add_input('rho',
-                        val=np.ones(nn) * 1.225,
-                        units='kg/m**3',
-                        desc="air density")
-        
         self.add_input('radius',
                        val=np.ones(nn) * 0.12,
                        units='m',
@@ -45,6 +40,11 @@ class AeroSphereComp(om.ExplicitComponent):
         self.add_input('Cd',
                        val=np.ones(nn) * 0.5,
                        desc="drag coefficient (sphere ~ 0.5)")
+        
+        self.add_input('h',
+                       val=np.zeros(nn),
+                       units='m',
+                       desc="height/altitude used for rho calculation")
         
         # Outputs
 
@@ -63,35 +63,30 @@ class AeroSphereComp(om.ExplicitComponent):
                         units='N',
                         desc="side magnitude (sphere = 0)")
         
-        ar = np.arange(nn)
+        self.declare_coloring(wrt='*', method='cs')
 
-        # partials
-
-        self.declare_partials(of='drag', wrt='u', rows=ar, cols=ar)
-        self.declare_partials(of='drag', wrt='v', rows=ar, cols=ar)
-        self.declare_partials(of='drag', wrt='w', rows=ar, cols=ar)
-        self.declare_partials(of='drag', wrt='rho', rows=ar, cols=ar)
-        self.declare_partials(of='drag', wrt='radius', rows=ar, cols=ar)
-        self.declare_partials(of='drag', wrt='Cd', rows=ar, cols=ar)
-
-        self.declare_partials(of='lift', wrt='u', rows=ar, cols=ar)
-        self.declare_partials(of='lift', wrt='v', rows=ar, cols=ar)
-        self.declare_partials(of='lift', wrt='w', rows=ar, cols=ar)
-        
-        self.declare_partials(of='side', wrt='u', rows=ar, cols=ar)
-        self.declare_partials(of='side', wrt='v', rows=ar, cols=ar)
-        self.declare_partials(of='side', wrt='w', rows=ar, cols=ar)
+        alt_data = USatm1976Data.alt * om.unit_conversion('ft', 'm')[0]
+        rho_data = USatm1976Data.rho * om.unit_conversion('slug/ft**3', 'kg/m**3')[0]
+        self.rho_interp = InterpND(points=np.array(alt_data),
+                                   values=np.array(rho_data),
+                                   method='slinear').interpolate
 
     def compute(self, inputs, outputs):
         u = inputs['u']
         v = inputs['v']
         w = inputs['w']
-        rho = inputs['rho']
         R = inputs['radius']
         Cd = inputs['Cd']
+        h = inputs['h']
 
         # V_rel
         V = np.sqrt(u**2 + v**2 + w**2)
+
+        # rho -- handling complex step
+        if np.iscomplexobj(h):
+            rho = self.rho_interp(inputs['h'])
+        else:
+            rho = self.rho_interp(inputs['h']).real
 
         # Divide by zero check
         if V == 0:
