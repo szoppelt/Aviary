@@ -98,37 +98,6 @@ class AeroSphereComp(om.ExplicitComponent):
         outputs['lift'] = np.zeros_like(outputs['drag'])
         outputs['side'] = np.zeros_like(outputs['drag'])
 
-    def compute_partials(self, inputs, J):
-        u = inputs['u']
-        v = inputs['v']
-        w = inputs['w']
-        rho = inputs['rho']
-        R = inputs['radius']
-        Cd = inputs['Cd']
-        nn = self.options['num_nodes']
-        
-        V = np.sqrt(u**2 + v**2 + w**2)
-
-        if V == 0:
-            V = 1e-8
-        
-        A = np.pi * R**2
-        
-        J['drag', 'u'] = rho * Cd * A * u
-        J['drag', 'v'] = rho * Cd * A * v
-        J['drag', 'w'] = rho * Cd * A * w
-        J['drag', 'rho'] = 0.5 * Cd * A * V**2
-        J['drag', 'Cd'] = 0.5 * rho * A * V**2
-        J['drag', 'radius'] = rho * Cd * np.pi * R * V**2
-
-        J['lift', 'u'] = np.zeros(nn)
-        J['lift', 'v'] = np.zeros(nn)
-        J['lift', 'w'] = np.zeros(nn)
-
-        J['side', 'u'] = np.zeros(nn)
-        J['side', 'v'] = np.zeros(nn)
-        J['side', 'w'] = np.zeros(nn)
-
 if __name__ == "__main__":
     p = om.Problem()
     p.model = om.Group()
@@ -147,4 +116,4 @@ if __name__ == "__main__":
 
     p.run_model()
 
-    p.check_partials(compact_print=True, show_only_incorrect=False, method='cs')
+    p.check_partials(compact_print=True, show_only_incorrect=False, method='fd')
