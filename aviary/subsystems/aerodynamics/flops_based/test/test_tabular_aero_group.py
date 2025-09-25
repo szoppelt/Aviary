@@ -7,7 +7,7 @@ from openmdao.utils.assert_utils import assert_check_partials, assert_near_equal
 from openmdao.utils.testing_utils import use_tempdirs
 from parameterized import parameterized
 
-from aviary.interface.default_phase_info.height_energy import phase_info
+from aviary.models.missions.height_energy_default import phase_info
 from aviary.interface.methods_for_level2 import AviaryProblem
 from aviary.subsystems.aerodynamics.aerodynamics_builder import CoreAerodynamicsBuilder
 from aviary.subsystems.atmosphere.atmosphere import Atmosphere
@@ -99,18 +99,11 @@ class TabularAeroGroupFileTest(unittest.TestCase):
             local_phase_info,
         )
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         print('about to run')
         prob.run_model()
@@ -220,6 +213,9 @@ class TabularAeroGroupDataTest(unittest.TestCase):
         local_phase_info.pop('climb')
         local_phase_info.pop('descent')
 
+        # This is a somewhat contrived problem, so pick a mass.
+        local_phase_info['cruise']['user_options']['mass_initial'] = (150000.0, 'lbm')
+
         prob = AviaryProblem()
 
         prob.load_inputs(
@@ -227,14 +223,9 @@ class TabularAeroGroupDataTest(unittest.TestCase):
             local_phase_info,
         )
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         # Connect or set.
         prob.aviary_inputs.set_val(Aircraft.Design.LIFT_INDEPENDENT_DRAG_POLAR, self.CD0_values)
@@ -242,14 +233,12 @@ class TabularAeroGroupDataTest(unittest.TestCase):
 
         prob.setup()
 
-        prob.set_initial_guesses()
-
         prob.run_model()
 
         assert_near_equal(prob.get_val('traj.cruise.rhs_all.drag', units='lbf')[0], 9907.0, 1.0e-3)
 
 
-data_sets = ['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'N3CC']
+data_sets = ['LargeSingleAisle1FLOPS', 'LargeSingleAisle2FLOPS', 'AdvancedSingleAisle']
 
 
 class ComputedVsTabularTest(unittest.TestCase):
@@ -696,7 +685,7 @@ _design_altitudes = AviaryValues(
     {
         'LargeSingleAisle1FLOPS': (41000, 'ft'),
         'LargeSingleAisle2FLOPS': (41000, 'ft'),
-        'N3CC': (43000, 'ft'),
+        'AdvancedSingleAisle': (43000, 'ft'),
     }
 )
 # endregion - computed aero data

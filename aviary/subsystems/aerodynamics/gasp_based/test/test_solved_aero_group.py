@@ -11,7 +11,7 @@ import numpy as np
 import openmdao.api as om
 from openmdao.utils.assert_utils import assert_near_equal
 
-from aviary.interface.default_phase_info.height_energy import phase_info
+from aviary.models.missions.height_energy_default import phase_info
 from aviary.interface.methods_for_level2 import AviaryProblem
 from aviary.subsystems.subsystem_builder_base import SubsystemBuilderBase
 from aviary.utils.csv_data_file import read_data_file
@@ -20,9 +20,7 @@ from aviary.variable_info.enums import LegacyCode
 from aviary.variable_info.variables import Aircraft
 
 # The drag-polar-generating component reads this in, instead of computing the polars.
-polar_file = (
-    'subsystems/aerodynamics/gasp_based/data/large_single_aisle_1_aero_free_reduced_alpha.txt'
-)
+polar_file = 'models/large_single_aisle_1/large_single_aisle_1_aero_free_reduced_alpha.csv'
 
 phase_info = deepcopy(phase_info)
 
@@ -34,7 +32,7 @@ phase_info['cruise']['subsystem_options']['core_aerodynamics']['aero_data'] = po
 phase_info.pop('climb')
 phase_info.pop('descent')
 
-data = read_data_file(polar_file)
+data, _, _ = read_data_file(polar_file)
 ALTITUDE = data.get_val('Altitude', 'ft')
 MACH = data.get_val('Mach', 'unitless')
 ALPHA = data.get_val('Angle_of_Attack', 'deg')
@@ -55,20 +53,13 @@ class TestSolvedAero(unittest.TestCase):
             'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv',
             local_phase_info,
         )
-        prob.aero_method = LegacyCode.GASP
+        prob.model.aero_method = LegacyCode.GASP
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_model()
 
@@ -106,23 +97,17 @@ class TestSolvedAero(unittest.TestCase):
             'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv',
             ph_in,
         )
-        prob.aero_method = LegacyCode.GASP
 
-        # Preprocess inputs
-        prob.check_and_preprocess_inputs()
+        prob.model.aero_method = LegacyCode.GASP
 
         prob.aviary_inputs.set_val(Aircraft.Design.LIFT_POLAR, np.zeros_like(CL), units='unitless')
         prob.aviary_inputs.set_val(Aircraft.Design.DRAG_POLAR, np.zeros_like(CD), units='unitless')
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
+        prob.check_and_preprocess_inputs()
 
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_model()
 
@@ -131,6 +116,18 @@ class TestSolvedAero(unittest.TestCase):
 
         assert_near_equal(CL_pass, CL_base, 1e-6)
         assert_near_equal(CD_pass, CD_base, 1e-6)
+
+        # Test the drag scaler
+
+        prob.set_val(Aircraft.Design.SUBSONIC_DRAG_COEFF_FACTOR, 2.0, units='unitless')
+
+        prob.run_model()
+
+        CL_pass = prob.get_val('traj.cruise.rhs_all.core_aerodynamics.CL')
+        CD_pass = prob.get_val('traj.cruise.rhs_all.core_aerodynamics.CD')
+
+        assert_near_equal(CL_pass, CL_base, 1e-6)
+        assert_near_equal(CD_pass, 2.0 * CD_base, 1e-6)
 
     def test_parameters(self):
         # This test is to make sure that the aero builder creates a parameter
@@ -144,23 +141,16 @@ class TestSolvedAero(unittest.TestCase):
             'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv',
             local_phase_info,
         )
-        prob.aero_method = LegacyCode.GASP
+        prob.model.aero_method = LegacyCode.GASP
 
         # Change value just to be certain.
         prob.aviary_inputs.set_val(Aircraft.Wing.AREA, 7777, units='ft**2')
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_model()
 
@@ -177,20 +167,13 @@ class TestSolvedAero(unittest.TestCase):
 
         csv_path = 'subsystems/aerodynamics/flops_based/test/data/high_wing_single_aisle.csv'
         prob.load_inputs(csv_path, local_phase_info)
-        prob.aero_method = LegacyCode.GASP
+        prob.model.aero_method = LegacyCode.GASP
 
-        # Preprocess inputs
         prob.check_and_preprocess_inputs()
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
-
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_model()
 
@@ -242,23 +225,16 @@ class TestSolvedAero(unittest.TestCase):
         prob = AviaryProblem()
 
         prob.load_inputs(csv_path, ph_in)
-        prob.aero_method = LegacyCode.GASP
-
-        # Preprocess inputs
-        prob.check_and_preprocess_inputs()
+        prob.model.aero_method = LegacyCode.GASP
 
         prob.aviary_inputs.set_val(Aircraft.Design.LIFT_POLAR, np.zeros_like(CL), units='unitless')
         prob.aviary_inputs.set_val(Aircraft.Design.DRAG_POLAR, np.zeros_like(CD), units='unitless')
 
-        prob.add_pre_mission_systems()
-        prob.add_phases()
-        prob.add_post_mission_systems()
+        prob.check_and_preprocess_inputs()
 
-        prob.link_phases()
+        prob.build_model()
 
         prob.setup()
-
-        prob.set_initial_guesses()
 
         prob.run_model()
 
