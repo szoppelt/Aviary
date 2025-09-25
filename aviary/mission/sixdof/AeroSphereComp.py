@@ -92,7 +92,7 @@ class AeroSphereComp(om.ExplicitComponent):
         V = np.sqrt(u**2 + v**2 + w**2)
 
         # Divide by zero check
-        if V == 0:
+        if any(V) == 0:
             V = 1e-8
         
         A = np.pi * R**2 
@@ -112,7 +112,7 @@ class AeroSphereComp(om.ExplicitComponent):
         
         V = np.sqrt(u**2 + v**2 + w**2)
 
-        if V == 0:
+        if any(V) == 0:
             V = 1e-8
         
         A = np.pi * R**2

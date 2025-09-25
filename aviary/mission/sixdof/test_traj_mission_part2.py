@@ -3,6 +3,11 @@ import numpy as np
 import openmdao.api as om
 import dymos as dm
 
+import sys
+import os
+
+sys.path.append("/home/omdao/Aviary-1/")
+
 
 from openmdao.api import Group
 from dymos.models.atmosphere.atmos_1976 import USatm1976Comp
@@ -78,9 +83,7 @@ def build_phase(name, transcription, duration_bounds, z_final=None, cruise=False
 
     # Controls
     for ctrl, tgt, units in [
-        ('Fx', 'Fx', 'N'),
-        ('Fy', 'Fy', 'N'),
-        ('Fz', 'Fz', 'N'),
+        ('thrust', 'thrust', 'N'),
         ('lx', 'lx', 'N*m'),
         ('ly', 'ly', 'N*m'),
         ('lz', 'lz', 'N*m')]:
@@ -164,7 +167,7 @@ def sixdof_mission():
 
 
     p.final_setup()
-    dm.run_problem(p, run_driver=True, simulate=True, make_plots=False)
+    dm.run_problem(p, run_driver=True, simulate=True, make_plots=True)
 
 
     exp_out = traj.simulate()

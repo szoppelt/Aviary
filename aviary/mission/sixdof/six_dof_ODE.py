@@ -95,11 +95,13 @@ class SixDOF_ODE(_BaseODE):
                 'v',
                 'w',
                 'drag',
+                'thrust',
                 'lift',
                 'side',
-                'thrust',
                 'heading_angle',
-                Dynamic.Mission.FLIGHT_PATH_ANGLE,
+                'flight_path_angle',
+                'heading_angle_NED',
+                'fpa_NED'
             ],
             promotes_outputs=[
                 'Fx',
