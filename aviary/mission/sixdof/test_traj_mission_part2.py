@@ -35,22 +35,20 @@ class vtolODE(Group):
     def setup(self):
         nn = self.options['num_nodes']
 
-        self.add_subsystem('USatm1976comp', USatm1976Comp(num_nodes=nn),
+        self.add_subsystem('atm', USatm1976Comp(num_nodes=nn),
             promotes_inputs=['*'],
             promotes_outputs=['rho'])
-        self.add_subsystem('AeroSphere', AeroSphereComp(num_nodes=nn),
+        self.add_subsystem('aero', AeroSphereComp(num_nodes=nn),
             promotes_inputs=['*'],
             promotes_outputs=['*'])
 
 
-        self.add_subsystem('ForceComponents', ForceComponentResolver(num_nodes=nn),
+        self.add_subsystem('forces', ForceComponentResolver(num_nodes=nn),
+            promotes_inputs=['*'],
+            promotes_outputs=['Fx', 'Fy', 'Fz'])
+        self.add_subsystem('eom', SixDOF_EOM(num_nodes=nn),
             promotes_inputs=['*'],
             promotes_outputs=['*'])
-        self.add_subsystem('SixDOF_EOM', SixDOF_EOM(num_nodes=nn),
-            promotes_inputs=['*'],
-            promotes_outputs=['*'])
-
-
 
 
 def build_phase(name, transcription, duration_bounds, z_final=None, cruise=False):
@@ -82,12 +80,13 @@ def build_phase(name, transcription, duration_bounds, z_final=None, cruise=False
 
 
     # Controls
-    for ctrl, tgt, units in [
-        ('thrust', 'thrust', 'N'),
-        ('lx', 'lx', 'N*m'),
-        ('ly', 'ly', 'N*m'),
-        ('lz', 'lz', 'N*m')]:
-        phase.add_control(ctrl, targets=[tgt], opt=True, units=units)
+    #phase.add_control('Fx', targets=['Fx'], opt=True, units='N', lower=-200.0, upper=200.0)
+    #phase.add_control('Fy', targets=['Fy'], opt=True, units='N', lower=-200.0, upper=200.0)
+    #phase.add_control('Fz', targets=['Fz'], opt=True, units='N', lower=0.0, upper=400.0)
+    phase.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=-200.0, upper=200.0)
+    phase.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-50.0, upper=50.0)
+    phase.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-50.0, upper=50.0)
+    phase.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-50.0, upper=50.0)
 
 
     # Parameters
@@ -128,7 +127,8 @@ def sixdof_mission():
 
     # Link phases (continuous states)
     traj.link_phases(['climb', 'cruise', 'descent'],
-                    vars=['u', 'v', 'w',
+                    vars=['time', 
+                          'u', 'v', 'w',
                             'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
                             'roll', 'pitch', 'yaw', 'x', 'y', 'z'],
                     connected=True)
@@ -149,12 +149,18 @@ def sixdof_mission():
 
 
     # Initial guesses
+    climb.set_time_options(fix_initial=True)
+    climb.add_boundary_constraint('z', loc='initial', equals=0.0, units='m')
+    climb.add_boundary_constraint('u', loc='initial', equals=1.0e-4, units='m/s')
+    climb.add_boundary_constraint('v', loc='initial', equals=0.0, units='m/s')
+    climb.add_boundary_constraint('w', loc='initial', equals=0.0, units='m/s')
     climb.set_time_val(initial=0, duration=50, units='s')
     climb.set_state_val('z', vals=[0, 100], units='m')
     cruise.set_time_val(initial=50, duration=200, units='s')
     cruise.set_state_val('z', vals=[100, 100], units='m')
     descent.set_time_val(initial=250, duration=50, units='s')
     descent.set_state_val('z', vals=[100, 0], units='m')
+    
 
 
     # Parameters
@@ -165,9 +171,9 @@ def sixdof_mission():
         ph.set_parameter_val('J_zz', val=16, units='kg*m**2')
         ph.set_parameter_val('J_xz', val=0, units='kg*m**2')
 
-
+    #p.setup()
     p.final_setup()
-    dm.run_problem(p, run_driver=True, simulate=True, make_plots=True)
+    dm.run_problem(p, run_driver=False, simulate=True, make_plots=True)
 
 
     exp_out = traj.simulate()

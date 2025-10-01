@@ -254,12 +254,6 @@ class ForceComponentResolver(om.ExplicitComponent):
 
         
 
-        print("Cbn shape: ", np.shape(Cbn))
-        print("t_hat_n shape: ", np.shape(t_hat_n))
-        print("Cbn = ", Cbn)
-        print("t_hat_n = ", t_hat_n)
-        
-
         # Thrust direction in body
         t_hat_b = Cbn @ t_hat_n
 
