@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import openmdao.api as om
 import dymos as dm
 from dymos.models.atmosphere.atmos_1976 import USatm1976Comp
@@ -12,6 +13,12 @@ sys.path.append("/home/omdao/Aviary-1/")
 from aviary.mission.sixdof.six_dof_EOM import SixDOF_EOM
 from aviary.mission.sixdof.force_component_calc import ForceComponentResolver
 from aviary.mission.sixdof.AeroSphereComp import AeroSphereComp
+
+from openmdao.utils.general_utils import set_pyoptsparse_opt
+OPT, OPTIMIZER = set_pyoptsparse_opt('SNOPT')
+if OPTIMIZER:
+    from openmdao.drivers.pyoptsparse_driver import pyOptSparseDriver
+
 
 
 class vtolODE(om.Group):
@@ -35,8 +42,8 @@ class vtolODE(om.Group):
         # Atmosphere component (needs h, not z)
         self.add_subsystem('atm', 
                           USatm1976Comp(num_nodes=nn),
-                          promotes_inputs=['h'],
-                          promotes_outputs=['rho'])
+                          promotes_inputs=['*'],
+                          promotes_outputs=['rho', 'sos', 'temp'])
         
         # CRITICAL FIX 2: Compute angles needed by ForceComponentResolver
         # These relate body velocities to wind/NED frames
@@ -81,9 +88,9 @@ class vtolODE(om.Group):
         # For simplicity with a sphere, we can assume thrust is purely vertical
         # and wind angles equal body angles
         self.add_subsystem('thrust_angles',
-                          om.ExecComp(['heading_angle = 0.0',
-                                      'flight_path_angle = 0.0',
-                                      'heading_angle_NED = 0.0',
+                          om.ExecComp(['heading_angle = 1e-8',
+                                      'flight_path_angle = 1e-8',
+                                      'heading_angle_NED = 1e-8',
                                       'fpa_NED = -pi/2'],  # -90 deg = straight down
                                      heading_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
                                      flight_path_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
@@ -97,8 +104,7 @@ class vtolODE(om.Group):
                           ForceComponentResolver(num_nodes=nn),
                           promotes_inputs=['u', 'v', 'w', 'thrust',
                                          'heading_angle', 'flight_path_angle',
-                                         'heading_angle_NED', 'fpa_NED'],
-                          promotes_outputs=['Fx', 'Fy', 'Fz'])
+                                         'heading_angle_NED', 'fpa_NED'])
         
         # Connect aero forces
         self.connect('aero.drag', 'forces.drag')
@@ -108,8 +114,17 @@ class vtolODE(om.Group):
         # Equations of motion
         self.add_subsystem('eom', 
                           SixDOF_EOM(num_nodes=nn),
-                          promotes_inputs=['*'],
+                          promotes_inputs=['mass', 'u', 'v', 'w', 
+                                           'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
+                                           'roll', 'pitch', 'yaw', 
+                                           'x', 'y', 'z', 'g', 'lx', 
+                                           'ly', 'lz', 'J_xz', 'J_xx', 'J_yy',
+                                           'J_zz'],
                           promotes_outputs=['*'])
+        
+        self.connect('forces.Fx', 'eom.Fx')
+        self.connect('forces.Fy', 'eom.Fy')
+        self.connect('forces.Fz', 'eom.Fz')
 
 
 def build_phase_fixed(name, transcription, duration_bounds, z_final=None, cruise=False):
@@ -167,6 +182,8 @@ def build_phase_fixed(name, transcription, duration_bounds, z_final=None, cruise
                        opt=False, static_target=True)
     phase.add_parameter('J_xz', units='kg * m**2', targets=['J_xz'],
                        opt=False, static_target=True)
+    phase.add_parameter('g', units='m / s**2', targets=['g'],
+                        opt=False, static_target=True)
     
     # Add aero parameters
     phase.add_parameter('sphere_radius', units='m', targets=['sphere_radius'],
@@ -273,12 +290,26 @@ def sixdof_mission_fixed():
         ph.set_parameter_val('J_xz', val=0.0, units='kg*m**2')
         ph.set_parameter_val('sphere_radius', val=0.12, units='m')
         ph.set_parameter_val('sphere_Cd', val=0.5)
+        ph.set_parameter_val('g', val=9.81, units='m/s**2')
     
     p.final_setup()
     
     # Run simulation first to check setup
     print("Running simulation to verify setup...")
     dm.run_problem(p, run_driver=False, simulate=True, make_plots=False)
+
+    sim = traj.simulate(method='Radau', atol=1e-6, rtol=1e-6)
+
+    # Plot altitude
+    for ph_name in ['climb', 'cruise', 'descent']:
+        t = sim.get_val(f'traj.{ph_name}.timeseries.time')
+        z = sim.get_val(f'traj.{ph_name}.timeseries.z')
+        plt.plot(t, z, label=ph_name)
+        plt.legend()
+        plt.xlabel('time (s)')
+        plt.ylabel('z (m) (NED)')
+        plt.title('Trajectory (altitude)')
+        plt.show()
     
     print("\nSimulation successful! Now running optimization...")
     dm.run_problem(p, run_driver=True, simulate=True, make_plots=True)
