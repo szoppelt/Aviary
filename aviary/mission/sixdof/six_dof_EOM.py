@@ -22,7 +22,7 @@ class SixDOF_EOM(om.ExplicitComponent):
 
         self.add_input(
             'mass',
-            val=np.zeros(nn),
+            val=np.zeros(1),
             units='kg',
             desc="mass -- assume constant"
         )
@@ -299,7 +299,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         )
 
         ar = np.arange(nn)
-        self.declare_partials(of='dx_accel', wrt='mass', rows=ar, cols=ar)
+        self.declare_partials(of='dx_accel', wrt='mass')
         self.declare_partials(of='dx_accel', wrt='Fx', rows=ar, cols=ar)
         self.declare_partials(of='dx_accel', wrt='v', rows=ar, cols=ar)
         self.declare_partials(of='dx_accel', wrt='w', rows=ar, cols=ar)
@@ -308,7 +308,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='dx_accel', wrt='g')
         self.declare_partials(of='dx_accel', wrt='pitch', rows=ar, cols=ar)
 
-        self.declare_partials(of='dy_accel', wrt='mass', rows=ar, cols=ar)
+        self.declare_partials(of='dy_accel', wrt='mass')
         self.declare_partials(of='dy_accel', wrt='Fy', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='u', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='w', rows=ar, cols=ar)
@@ -318,7 +318,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='dy_accel', wrt='roll', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='pitch', rows=ar, cols=ar)
 
-        self.declare_partials(of='dz_accel', wrt='mass', rows=ar, cols=ar)
+        self.declare_partials(of='dz_accel', wrt='mass')
         self.declare_partials(of='dz_accel', wrt='Fz', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='v', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='u', rows=ar, cols=ar)

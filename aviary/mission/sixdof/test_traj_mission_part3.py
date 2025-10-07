@@ -43,8 +43,8 @@ class vtolODE(om.Group):
         self.add_subsystem('wind_angles',
                           om.ExecComp(['V = (u**2 + v**2 + w**2)**0.5 + 1e-8',
                                       'alpha = arctan2(w, u)',  # angle of attack
-                                      'beta = arcsin(v / V)',    # sideslip angle
-                                      'gamma = -arcsin(w / V)',  # flight path angle (wind frame)
+                                      'beta = arcsin(v / ((u**2 + v**2 + w**2)**0.5 + 1e-8))',    # sideslip angle
+                                      'gamma = -arcsin(w / ((u**2 + v**2 + w**2)**0.5 + 1e-8))',  # flight path angle (wind frame)
                                       'chi = arctan2(v, u)'],    # heading angle (wind frame)
                                      V={'units': 'm/s', 'shape': (nn,)},
                                      alpha={'units': 'rad', 'shape': (nn,)},
@@ -64,18 +64,17 @@ class vtolODE(om.Group):
                                       'Cd_val = Cd'],
                                      A={'units': 'm**2', 'shape': (nn,)},
                                      Cd_val={'shape': (nn,)},
-                                     radius={'units': 'm', 'shape': (nn,), 'val': np.ones(nn) * 0.12},
-                                     Cd={'shape': (nn,), 'val': np.ones(nn) * 0.5}),
+                                     radius={'units': 'm', 'shape': (1,), 'val': 0.12},
+                                     Cd={'shape': (1,), 'val': 0.5}),
                           promotes_inputs=[('radius', 'sphere_radius'), 
                                          ('Cd', 'sphere_Cd')])
 
         # Aerodynamics
         self.add_subsystem('aero', 
                           AeroSphereComp(num_nodes=nn),
-                          promotes_inputs=['u', 'v', 'w', 'rho', 'radius', 'Cd'])
+                          promotes_inputs=['u', 'v', 'w'])
         
         # Connect aero parameters
-        self.connect('aero_params.A', 'aero.A')  # If AeroSphereComp expects A
         self.connect('aero_params.Cd_val', 'aero.Cd')
 
         # CRITICAL FIX 4: Provide angles to ForceComponentResolver
@@ -173,7 +172,7 @@ def build_phase_fixed(name, transcription, duration_bounds, z_final=None, cruise
     phase.add_parameter('sphere_radius', units='m', targets=['sphere_radius'],
                        opt=False, static_target=True, val=0.12)
     phase.add_parameter('sphere_Cd', targets=['sphere_Cd'],
-                       opt=False, static_target=True, val=0.5)
+                       opt=False, static_target=True, val=0.47)
     
     # Constraints
     if z_final is not None:
@@ -219,7 +218,7 @@ def sixdof_mission_fixed():
     # Driver setup
     p.driver = om.pyOptSparseDriver()
     p.driver.options["optimizer"] = "IPOPT"
-    p.driver.opt_settings['max_iter'] = 500
+    p.driver.opt_settings['max_iter'] = 800
     p.driver.opt_settings['tol'] = 1e-4
     p.driver.opt_settings['print_level'] = 5
     p.driver.opt_settings['acceptable_tol'] = 1e-3
