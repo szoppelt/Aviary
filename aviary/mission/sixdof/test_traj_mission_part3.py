@@ -13,6 +13,8 @@ sys.path.append("/home/omdao/Aviary-1/")
 from aviary.mission.sixdof.six_dof_EOM import SixDOF_EOM
 from aviary.mission.sixdof.force_component_calc import ForceComponentResolver
 from aviary.mission.sixdof.AeroSphereComp import AeroSphereComp
+# for a simple force component -- excludes lift and side
+from aviary.mission.sixdof.SimplifiedForceComponentResolver import SimplifiedForceResolver
 
 from openmdao.utils.general_utils import set_pyoptsparse_opt
 OPT, OPTIMIZER = set_pyoptsparse_opt('SNOPT')
@@ -87,29 +89,27 @@ class vtolODE(om.Group):
         # CRITICAL FIX 4: Provide angles to ForceComponentResolver
         # For simplicity with a sphere, we can assume thrust is purely vertical
         # and wind angles equal body angles
-        self.add_subsystem('thrust_angles',
-                          om.ExecComp(['heading_angle = 1e-8',
-                                      'flight_path_angle = 1e-8',
-                                      'heading_angle_NED = 1e-8',
-                                      'fpa_NED = -pi/2'],  # -90 deg = straight down
-                                     heading_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
-                                     flight_path_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
-                                     heading_angle_NED={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
-                                     fpa_NED={'units': 'rad', 'shape': (nn,), 'val': np.ones(nn) * (-np.pi/2)}),
-                          promotes_outputs=['heading_angle', 'flight_path_angle',
-                                          'heading_angle_NED', 'fpa_NED'])
+        #self.add_subsystem('thrust_angles',
+        #                  om.ExecComp(['heading_angle = 1e-8',
+        #                              'flight_path_angle = 1e-8',
+        #                              'heading_angle_NED = 1e-8',
+        #                              'fpa_NED = -pi/2'],  # -90 deg = straight down
+        #                             heading_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+        #                             flight_path_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+        #                             heading_angle_NED={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+        #                             fpa_NED={'units': 'rad', 'shape': (nn,), 'val': np.ones(nn) * (-np.pi/2)}),
+        #                  promotes_outputs=['heading_angle', 'flight_path_angle',
+        #                                  'heading_angle_NED', 'fpa_NED'])
 
         # Force resolution
         self.add_subsystem('forces', 
-                          ForceComponentResolver(num_nodes=nn),
-                          promotes_inputs=['u', 'v', 'w', 'thrust',
-                                         'heading_angle', 'flight_path_angle',
-                                         'heading_angle_NED', 'fpa_NED'])
+                          SimplifiedForceResolver(num_nodes=nn),
+                          promotes_inputs=['u', 'v', 'w', 'thrust'])
         
         # Connect aero forces
         self.connect('aero.drag', 'forces.drag')
-        self.connect('aero.lift', 'forces.lift')
-        self.connect('aero.side', 'forces.side')
+        #self.connect('aero.lift', 'forces.lift')
+        #self.connect('aero.side', 'forces.side')
 
         # Equations of motion
         self.add_subsystem('eom', 
