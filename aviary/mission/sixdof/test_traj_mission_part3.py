@@ -3,6 +3,11 @@ import openmdao.api as om
 import dymos as dm
 from dymos.models.atmosphere.atmos_1976 import USatm1976Comp
 
+import sys 
+import os
+
+sys.path.append("/home/omdao/Aviary-1/")
+
 # Import your components
 from aviary.mission.sixdof.six_dof_EOM import SixDOF_EOM
 from aviary.mission.sixdof.force_component_calc import ForceComponentResolver
@@ -36,7 +41,7 @@ class vtolODE(om.Group):
         # CRITICAL FIX 2: Compute angles needed by ForceComponentResolver
         # These relate body velocities to wind/NED frames
         self.add_subsystem('wind_angles',
-                          om.ExecComp(['V = sqrt(u**2 + v**2 + w**2) + 1e-8',
+                          om.ExecComp(['V = (u**2 + v**2 + w**2)**0.5 + 1e-8',
                                       'alpha = arctan2(w, u)',  # angle of attack
                                       'beta = arcsin(v / V)',    # sideslip angle
                                       'gamma = -arcsin(w / V)',  # flight path angle (wind frame)
@@ -59,8 +64,8 @@ class vtolODE(om.Group):
                                       'Cd_val = Cd'],
                                      A={'units': 'm**2', 'shape': (nn,)},
                                      Cd_val={'shape': (nn,)},
-                                     radius={'units': 'm', 'shape': (nn,), 'val': 0.12},
-                                     Cd={'shape': (nn,), 'val': 0.5}),
+                                     radius={'units': 'm', 'shape': (nn,), 'val': np.ones(nn) * 0.12},
+                                     Cd={'shape': (nn,), 'val': np.ones(nn) * 0.5}),
                           promotes_inputs=[('radius', 'sphere_radius'), 
                                          ('Cd', 'sphere_Cd')])
 
@@ -81,18 +86,17 @@ class vtolODE(om.Group):
                                       'flight_path_angle = 0.0',
                                       'heading_angle_NED = 0.0',
                                       'fpa_NED = -pi/2'],  # -90 deg = straight down
-                                     heading_angle={'units': 'rad', 'shape': (nn,), 'val': 0.0},
-                                     flight_path_angle={'units': 'rad', 'shape': (nn,), 'val': 0.0},
-                                     heading_angle_NED={'units': 'rad', 'shape': (nn,), 'val': 0.0},
-                                     fpa_NED={'units': 'rad', 'shape': (nn,), 'val': -np.pi/2}),
+                                     heading_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+                                     flight_path_angle={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+                                     heading_angle_NED={'units': 'rad', 'shape': (nn,), 'val': np.zeros(nn)},
+                                     fpa_NED={'units': 'rad', 'shape': (nn,), 'val': np.ones(nn) * (-np.pi/2)}),
                           promotes_outputs=['heading_angle', 'flight_path_angle',
                                           'heading_angle_NED', 'fpa_NED'])
 
         # Force resolution
         self.add_subsystem('forces', 
                           ForceComponentResolver(num_nodes=nn),
-                          promotes_inputs=['u', 'v', 'w', 'drag', 'thrust',
-                                           'lift', 'side',
+                          promotes_inputs=['u', 'v', 'w', 'thrust',
                                          'heading_angle', 'flight_path_angle',
                                          'heading_angle_NED', 'fpa_NED'],
                           promotes_outputs=['Fx', 'Fy', 'Fz'])
@@ -119,39 +123,39 @@ def build_phase_fixed(name, transcription, duration_bounds, z_final=None, cruise
                           units='s', duration_bounds=duration_bounds)
     
     # States with more reasonable bounds and scaling
+    # Simpler version without explicit scaling - let Dymos auto-scale
     state_configs = [
         # Linear velocities (body frame)
-        ('u', 'dx_accel', 'u', -20, 20, 'm/s', 0, 10),
-        ('v', 'dy_accel', 'v', -20, 20, 'm/s', 0, 10),
-        ('w', 'dz_accel', 'w', -20, 20, 'm/s', 0, 10),
+        ('u', 'dx_accel', 'u', -20, 20, 'm/s'),
+        ('v', 'dy_accel', 'v', -20, 20, 'm/s'),
+        ('w', 'dz_accel', 'w', -20, 20, 'm/s'),
         # Angular velocities
-        ('roll_ang_vel', 'roll_accel', 'roll_ang_vel', -5, 5, 'rad/s', 0, 1),
-        ('pitch_ang_vel', 'pitch_accel', 'pitch_ang_vel', -5, 5, 'rad/s', 0, 1),
-        ('yaw_ang_vel', 'yaw_accel', 'yaw_ang_vel', -5, 5, 'rad/s', 0, 1),
+        ('roll_ang_vel', 'roll_accel', 'roll_ang_vel', -5, 5, 'rad/s'),
+        ('pitch_ang_vel', 'pitch_accel', 'pitch_ang_vel', -5, 5, 'rad/s'),
+        ('yaw_ang_vel', 'yaw_accel', 'yaw_ang_vel', -5, 5, 'rad/s'),
         # Euler angles
-        ('roll', 'roll_angle_rate_eq', 'roll', -np.pi/4, np.pi/4, 'rad', 0, 0.5),
-        ('pitch', 'pitch_angle_rate_eq', 'pitch', -np.pi/4, np.pi/4, 'rad', 0, 0.5),
-        ('yaw', 'yaw_angle_rate_eq', 'yaw', 0, 2*np.pi, 'rad', 0, 6.28),
+        ('roll', 'roll_angle_rate_eq', 'roll', -np.pi/4, np.pi/4, 'rad'),
+        ('pitch', 'pitch_angle_rate_eq', 'pitch', -np.pi/4, np.pi/4, 'rad'),
+        ('yaw', 'yaw_angle_rate_eq', 'yaw', 0, 2*np.pi, 'rad'),
         # Position (NED frame)
-        ('x', 'dx_dt', 'x', 0, 1000, 'm', 0, 500),
-        ('y', 'dy_dt', 'y', -100, 100, 'm', 0, 50),
-        ('z', 'dz_dt', 'z', -100, 0, 'm', -100, 0),  # NED: 0=ground, -100m=100m altitude
+        ('x', 'dx_dt', 'x', 0, 1000, 'm'),
+        ('y', 'dy_dt', 'y', -100, 100, 'm'),
+        ('z', 'dz_dt', 'z', -100, 0, 'm'),  # NED: 0=ground, -100m=100m altitude
     ]
     
-    for state, rate, tgt, lo, up, units, ref0, ref in state_configs:
+    for state, rate, tgt, lo, up, units in state_configs:
         phase.add_state(state, fix_initial=False, rate_source=rate,
-                       targets=[tgt], lower=lo, upper=up, units=units,
-                       ref0=ref0, ref=ref)
+                       targets=[tgt], lower=lo, upper=up, units=units)
     
-    # Controls with scaling
+    # Controls (without explicit scaling for now)
     phase.add_control('thrust', targets=['thrust'], opt=True,
-                     units='N', lower=0.0, upper=200.0, ref=100.0)
+                     units='N', lower=0.0, upper=200.0)
     phase.add_control('lx', targets=['lx'], opt=True,
-                     units='N*m', lower=-5.0, upper=5.0, ref=2.5)
+                     units='N*m', lower=-5.0, upper=5.0)
     phase.add_control('ly', targets=['ly'], opt=True,
-                     units='N*m', lower=-5.0, upper=5.0, ref=2.5)
+                     units='N*m', lower=-5.0, upper=5.0)
     phase.add_control('lz', targets=['lz'], opt=True,
-                     units='N*m', lower=-5.0, upper=5.0, ref=2.5)
+                     units='N*m', lower=-5.0, upper=5.0)
     
     # Parameters (static)
     phase.add_parameter('mass', units='kg', targets=['mass'],
