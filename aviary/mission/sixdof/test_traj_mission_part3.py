@@ -139,11 +139,10 @@ p = om.Problem()
 p.driver = om.pyOptSparseDriver()
 p.driver.options["optimizer"] = "SNOPT"
 p.driver.opt_settings['Major iteration limit'] = 1000
-p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-5 # Relaxed
-p.driver.opt_settings['Major optimality tolerance'] = 1.0E-4 # Relaxed
+p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-4 # Relaxed
+p.driver.opt_settings['Major optimality tolerance'] = 1.0E-3 # Relaxed
 p.driver.opt_settings['iSumm'] = 6
 p.driver.opt_settings['Verify level'] = 0
-p.driver.opt_settings['Major step limit'] = 0.1 # Limiting step size
 p.driver.opt_settings['Linesearch tolerance'] = 0.9 # Conservative
 p.driver.declare_coloring()
 
@@ -180,11 +179,11 @@ z_final = -100.0 # m
 # First phase (climb)
 
 climb = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=5, order=3))
+                 transcription=dm.Radau(num_segments=15, order=3))
 
 climb = traj.add_phase('climb', climb)
 
-climb.set_time_options(fix_initial=True, duration_bounds=(.5, 100), units='s')
+climb.set_time_options(fix_initial=True, duration_bounds=(.5, 100), duration_ref=50, units='s')
 climb.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', 
                 targets=['u'], units='m/s', lower=-15, upper=15)
 climb.add_state('v', fix_initial=True, fix_final=False, rate_source='dy_accel', 
@@ -215,12 +214,12 @@ climb.add_control('thrust', targets=['thrust'], opt=True,units='N', lower=0.0, u
 climb.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-climb.add_boundary_constraint('z', loc='final', equals=z_final, units='m')
+climb.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
 
 
 # Second phase (cruise)
 cruise = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=5, order=3))
+                 transcription=dm.Radau(num_segments=20, order=3))
 
 cruise = traj.add_phase('cruise', cruise)
 
@@ -242,12 +241,12 @@ cruise.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=0.0,
 cruise.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 cruise.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 cruise.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-cruise.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
+#cruise.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
 #cruise.add_boundary_constraint('z', loc='initial', equals=z_final, units='m')
 #cruise.add_boundary_constraint('z', loc='final', equals=z_final, units='m')
 
 descent = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=5, order=3))
+                 transcription=dm.Radau(num_segments=15, order=3))
 
 descent = traj.add_phase('descent', descent)
 descent.set_time_options(fix_initial=False, initial_bounds=(0.5, 200), duration_bounds=(0.5, 200), duration_ref=80, units='s')
@@ -263,13 +262,13 @@ descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_an
 descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m')
 descent.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m')
 descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m')
-descent.add_objective('time', loc='final') # minimize time
+descent.add_objective('time', loc='final', ref=100.0) # minimize time
 # Controls (without explicit scaling for now)
 descent.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=0.0, upper=200.0)
 descent.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m')
+descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
 
 
 traj.link_phases(['climb', 'cruise', 'descent'],
@@ -359,19 +358,39 @@ descent.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 descent.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
-print("Testing initial guess...")
-try:
-    p.run_model()
-    print("Initial guess is feasible!")
-    # Check for NaNs
-    for phase_name in ['climb', 'cruise', 'descent']:
-        for state in ['u', 'v', 'w', 'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel', 'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
-            val=p.get_val(f'traj.phases.{phase_name}.states:{state}')
-            if np.any(np.isnan(val)) or np.any(np.isinf(val)):
-                print(f'NaN/Inf in {phase_name}.{state}')
+p.run_model()
+print("\n=== Checking Phase Continuity ===")
+for state in ['u', 'v', 'w',
+                          'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
+                          'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
+    climb_end = p.get_val(f'traj.phases.climb.timeseries.{state}')[-1]
+    cruise_start = p.get_val(f'traj.phases.cruise.timeseries.{state}')[0]
+    cruise_end = p.get_val(f'traj.phases.cruise.timeseries.{state}')[-1]
+    descent_start = p.get_val(f'traj.phases.descent.timeseries.{state}')[0]
 
-except Exception as e:
-    print(f"Initial guess failed: {e}")
+    print(f"\n{state}:")
+    print(f"   Climb end:    {climb_end}")
+    print(f"   Cruise start:   {cruise_start}  gap:  {abs(climb_end-cruise_start)}")
+    print(f"   Cruise end:   {cruise_end}")
+    print(f"   Descent start:   {descent_start}  (gap:  {abs(cruise_end-descent_start)})")
+
+z_cruise = p.get_val('traj.phases.cruise.timeseries.z')
+print(f"\n=== Cruise Altitude Check ===")
+print(f"   z range: [{z_cruise.min():.2f}, {z_cruise.max():.2f}]")
+print(f"   Constraint: [-150, -50]")
+if z_cruise.min() < -150 or z_cruise.max() > -50:
+    print("  WARNING: Initial guess violates cruise path constraint!")
+
+print("\n=== Checking Dynamics Magnitudes ===")
+for phase_name in ['climb', 'cruise', 'descent']:
+    for accel in ['dx_accel', 'dy_accel', 'dz_accel',
+                  'roll_accel', 'pitch_accel', 'yaw_accel']:
+        val = p.get_val(f'traj.phases.{phase_name}.rhs_all.{accel}')
+        print(f"{phase_name}.{accel}: min={val.min():.2e}, max={val.max():.2e}, mean={np.abs(val).mean():.2e}")
+
+        # Flag is accelerations are huge
+        if np.abs(val).max() > 100:
+            print(f"   WARNING: Very large accelerations!")
 
 dm.run_problem(p, run_driver=True, simulate=False)
 
