@@ -394,3 +394,5 @@ for phs in ['climb', 'cruise', 'descent']:
     ax.plot(t_sol[phs], z_sol[phs], 'o', marker=None, label='solution')
     ax.plot(t_exp[phs], z_exp[phs], '-', marker=None, label='simualtion')
     ax.legend()
+
+plt.show()
