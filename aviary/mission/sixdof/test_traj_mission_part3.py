@@ -135,11 +135,12 @@ class vtolODE(om.Group):
 p = om.Problem()
 
 p.driver = om.pyOptSparseDriver()
-p.driver.options["optimizer"] = "IPOPT"
-p.driver.opt_settings['max_iter'] = 800
-p.driver.opt_settings['tol'] = 1e-4
-p.driver.opt_settings['print_level'] = 5
-p.driver.opt_settings['acceptable_tol'] = 1e-3
+p.driver.options["optimizer"] = "SNOPT"
+p.driver.opt_settings['Major iteration limit'] = 1000
+p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-6
+p.driver.opt_settings['Major optimality tolerance'] = 1.0E-5
+p.driver.opt_settings['iSumm'] = 6
+p.driver.opt_settings['Verify level'] = 3
 p.driver.declare_coloring()
 
 traj = dm.Trajectory()
@@ -268,9 +269,6 @@ descent.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upp
 descent.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m')
 
-climb.add_timeseries_output('pos_z')
-cruise.add_timeseries_output('pos_z')
-descent.add_timeseries_output('pos_z')
 
 traj.link_phases(['climb', 'cruise', 'descent'],
                     vars=['time', 'u', 'v', 'w',
@@ -383,27 +381,33 @@ descent.set_control_val('lz', vals=0.0, units='N*m')
 # descent.set_parameter_val('sphere_Cd', val=0.47)
 # descent.set_parameter_val('g', val=9.81, units='m/s**2')
 
-dm.run_problem(p, run_driver=False, simulate=True)
+dm.run_problem(p, run_driver=True, simulate=True)
+
+exp_out = traj.simulate()
 
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
-sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_solution.db').get_case('final')
+# sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
+# sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_solution.db').get_case('final')
 
-t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
-z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
-             for phs in ['climb', 'cruise','descent'])
+# t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
+# z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
+#              for phs in ['climb', 'cruise','descent'])
 
-t_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
-z_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
-             for phs in ['climb', 'cruise','descent'])
+# t_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
+# z_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
+#              for phs in ['climb', 'cruise','descent'])
 
-fig, ax = plt.subplots(figsize=(12 , 6))
+# fig, ax = plt.subplots(figsize=(12 , 6))
 
-for phs in ['climb', 'cruise', 'descent']:
-    ax.plot(t_sol[phs], z_sol[phs], 'o', marker=None, label='solution')
-    ax.plot(t_exp[phs], z_exp[phs], '-', marker=None, label='simualtion')
-    ax.legend()
-
-plt.show()
+# Plot altitude vs time across all phases
+for ph in ['climb', 'cruise', 'descent']:
+    t = exp_out.get_val(f'traj.{ph}.timeseries.time')
+    z = exp_out.get_val(f'traj.{ph}.timeseries.z')
+    plt.plot(t, z, label=ph)
+    plt.legend()
+    plt.xlabel('Time (s)')
+    plt.ylabel('Altitude z (m)')
+    plt.title('VTOL Trajectory with Climb, Cruise, Descent')
+    plt.show()
