@@ -163,9 +163,10 @@ traj.add_parameter('J_xz', units='kg * m**2',
 traj.add_parameter('g', units='m / s**2', 
                    targets={'climb': ['g'], 'cruise': ['g'], 'descent': ['g']},
                     opt=False, static_target=True)
-traj.add_parameter('sphere_radius', units='m', targets=['sphere_radius'],
-                       opt=False, static_target=True, val=0.12)
-traj.add_parameter('sphere_Cd', targets=['sphere_Cd'],
+traj.add_parameter('sphere_radius', units='m', 
+                   targets={'climb': ['sphere_radius'], 'cruise': ['sphere_radius'], 'descent': ['sphere_radius']},
+                    opt=False, static_target=True, val=0.12)
+traj.add_parameter('sphere_Cd', targets={'climb': ['sphere_Cd'], 'cruise': ['sphere_Cd'], 'descent': ['sphere_Cd']},
                     opt=False, static_target=True, val=0.47)
 
 z_final = -100.0 # m
