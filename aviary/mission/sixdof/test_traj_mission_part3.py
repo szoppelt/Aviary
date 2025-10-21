@@ -373,3 +373,24 @@ descent.set_parameter_val('sphere_Cd', val=0.47)
 descent.set_parameter_val('g', val=9.81, units='m/s**2')
 
 dm.run_problem(p, run_driver=True, simulate=True)
+
+# Post processing
+sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
+sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_solution.db').get_case('final')
+
+t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+             for phs in ['climb', 'cruise', 'descent'])
+z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
+             for phs in ['climb', 'cruise','descent'])
+
+t_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+             for phs in ['climb', 'cruise', 'descent'])
+z_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.pos_z'.format(phs)))
+             for phs in ['climb', 'cruise','descent'])
+
+fig, ax = plt.subplots(figsize=(12 , 6))
+
+for phs in ['climb', 'cruise', 'descent']:
+    ax.plot(t_sol[phs], z_sol[phs], 'o', marker=None, label='solution')
+    ax.plot(t_exp[phs], z_exp[phs], '-', marker=None, label='simualtion')
+    ax.legend()
