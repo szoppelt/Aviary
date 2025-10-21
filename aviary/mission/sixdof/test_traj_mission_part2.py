@@ -36,7 +36,7 @@ class vtolODE(Group):
         nn = self.options['num_nodes']
 
         self.add_subsystem('atm', USatm1976Comp(num_nodes=nn),
-            promotes_inputs=['*'],
+            promotes_inputs=['h'],
             promotes_outputs=['rho'])
         self.add_subsystem('aero', AeroSphereComp(num_nodes=nn),
             promotes_inputs=['*'],
