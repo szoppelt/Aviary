@@ -85,6 +85,7 @@ class vtolODE(om.Group):
         
         # Connect aero parameters
         self.connect('aero_params.Cd_val', 'aero.Cd')
+        self.connect('rho', 'aero.rho')
 
         
         self.add_subsystem('thrust_angles',
@@ -391,6 +392,39 @@ for phase_name in ['climb', 'cruise', 'descent']:
         # Flag is accelerations are huge
         if np.abs(val).max() > 100:
             print(f"   WARNING: Very large accelerations!")
+
+print("\n=== Checking Forces ===")
+for phase_name in ['climb', 'cruise', 'descent']: 
+    Fx = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fx')
+    Fy = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fy')
+    Fz = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fz')
+    thrust = p.get_val(f'traj.phases.{phase_name}.rhs_all.thrust')
+    drag = p.get_val(f'traj.phases.{phase_name}.rhs_all.aero.drag')
+
+    print(f"\n{phase_name}:")
+    print(f"   Thrust:  {thrust.mean():.2f} N")
+    print(f"   Drag:  {drag.mean():.2f} N")
+    print(f"   Fx: min={Fx.min():.2f}, max={Fx.max():.2f}, mean={Fx.mean():.2f}")
+    print(f"   Fy: min={Fy.min():.2f}, max={Fy.max():.2f}, mean={Fy.mean():.2f}")
+    print(f"   Fz: min={Fz.min():.2f}, max={Fz.max():.2f}, mean={Fz.mean():.2f}")
+
+    if np.abs(Fx).max() > 500 or np.abs(Fz).max() > 500:
+        print(f"   ERROR: Forces are way too large!")
+
+print("\n=== Checking Angles ===")
+for phase_name in ['climb', 'cruise', 'descent']:
+    alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
+    beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
+    gamma = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.gamma')
+    chi = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.chi')
+
+    print(f"\n{phase_name}:")
+    for angle_name, angle_val in [('alpha', alpha), ('beta', beta),
+                                  ('gamma', gamma), ('chi', chi)]:
+        print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
+              f"max={np.rad2deg(angle_val.max()):.2f} deg")
+        if np.any(np.isnan(angle_val)):
+            print(f"   ERROR: {angle_name} contains NaN!")
 
 dm.run_problem(p, run_driver=True, simulate=False)
 
