@@ -195,23 +195,20 @@ class ForceComponentResolver(om.ExplicitComponent):
         # angle of attack
 
         # divide by zero checks
-        # if np.any(u == 0):
-        #     u[u == 0] = 1e-4
-        #     alpha = np.arctan(w / u)
-        # else:
-        #     alpha = np.arctan(w / u)
+        if np.any(u == 0):
+            u[u == 0] = 1e-4
+            alpha = np.arctan(w / u)
+        else:
+            alpha = np.arctan(w / u)
 
-        alpha = np.arctan2(w, u)
         # side slip angle
 
         # divide by zero checks
-        # if ((np.any(u != 0) or np.any(w != 0))) :
-        #     beta = np.arctan(v / np.sqrt(u**2 + w**2))
-        # else:
-        #     u[u == 0] = 1.0e-4
-        #     beta = np.arctan(v / np.sqrt(u**2 + w**2))
-
-        beta = np.arctan2(v, np.sqrt(u**2 + w**2 + 1e-8))
+        if ((np.any(u != 0) or np.any(w != 0))) :
+            beta = np.arctan(v / np.sqrt(u**2 + w**2))
+        else:
+            u[u == 0] = 1.0e-4
+            beta = np.arctan(v / np.sqrt(u**2 + w**2))
         
 
         # some trig needed
@@ -309,20 +306,20 @@ class ForceComponentResolver(om.ExplicitComponent):
         V = np.sqrt(u**2 + v**2 + w**2 + 1e-8)
 
         # divide by zero checks
-        # if np.any(u == 0):
-        #     u = 1e-4
-        #     alpha = np.arctan(w / u)
-        # else:
-        #     alpha = np.arctan(w / u)
+        if np.any(u == 0):
+            u = 1e-4
+            alpha = np.arctan(w / u)
+        else:
+            alpha = np.arctan(w / u)
 
         # side slip angle
 
         # divide by zero checks
-        # if (np.any(u != 0) or np.any(w != 0)) :
-        #     beta = np.arctan(v / np.sqrt(u**2 + w**2))
-        # else:
-        #     u = 1.0e-4
-        #     beta = np.arctan(v / np.sqrt(u**2 + w**2))
+        if (np.any(u != 0) or np.any(w != 0)) :
+            beta = np.arctan(v / np.sqrt(u**2 + w**2))
+        else:
+            u = 1.0e-4
+            beta = np.arctan(v / np.sqrt(u**2 + w**2))
         
         # t_hat_n = [
         #     np.cos(gamma_T) * np.cos(chi_T),
@@ -333,8 +330,6 @@ class ForceComponentResolver(om.ExplicitComponent):
         # t_hat_n = np.array(t_hat_n)
         # t_hat_n= t_hat_n.reshape((int(np.size(t_hat_n)), 1))
 
-        alpha = np.arctan2(w, u)
-        beta = np.arctan2(v, np.sqrt(u**2 + w**2 + 1e-8))
 
         cos_a, sin_a = np.cos(alpha), np.sin(alpha)
         cos_b, sin_b = np.cos(beta),  np.sin(beta)
