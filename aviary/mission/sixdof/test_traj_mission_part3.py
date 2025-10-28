@@ -143,7 +143,7 @@ p.driver.opt_settings['Major iteration limit'] = 1000
 p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-4 # Relaxed
 p.driver.opt_settings['Major optimality tolerance'] = 1.0E-3 # Relaxed
 p.driver.opt_settings['iSumm'] = 6
-p.driver.opt_settings['Verify level'] = 3
+p.driver.opt_settings['Verify level'] = 0
 #p.driver.opt_settings['Linesearch tolerance'] = 0.9 # Conservative
 p.driver.declare_coloring()
 
@@ -204,11 +204,11 @@ climb.add_state('pitch', fix_initial=True, fix_final=False, rate_source='pitch_a
 climb.add_state('yaw', fix_initial=True, fix_final=False, rate_source='yaw_angle_rate_eq', 
                 targets=['yaw'], units='rad', ref=1, defect_ref=1)
 climb.add_state('x', fix_initial=True, fix_final=False, rate_source='dx_dt',
-                targets=['x'], units='m', ref=50, defect_ref=1)
+                targets=['x'], units='m', ref=800, defect_ref=8.0)
 climb.add_state('y', fix_initial=True, fix_final=False, rate_source='dy_dt',
                 targets=['y'], units='m', ref=10, defect_ref=0.5)
 climb.add_state('z', fix_initial=True, fix_final=False, rate_source='dz_dt',
-                targets=['z'], units='m', ref=z_final, defect_ref=z_final)
+                targets=['z'], units='m', ref=-z_final, defect_ref=2.0)
 
 # Controls (without explicit scaling for now)
 climb.add_control('thrust', targets=['thrust'], opt=True,units='N', lower=0.0, upper=100.0)
@@ -236,11 +236,11 @@ cruise.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source=
 cruise.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=1)
 cruise.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=1)
 cruise.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
-cruise.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=500.0, defect_ref=500.0)
+cruise.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 cruise.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=-100, defect_ref=2.0)
+cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
 # Controls (without explicit scaling for now)
-cruise.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=0.0, upper=100.0)
+cruise.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=0.0, upper=200.0)
 cruise.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 cruise.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 cruise.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
@@ -265,9 +265,9 @@ descent.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source
 descent.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=1)
 descent.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=1)
 descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
-descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=1)
+descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 descent.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=-100, defect_ref=-100)
+descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
 descent.add_objective('time', loc='final', ref=120.0) # minimize time
 # Controls (without explicit scaling for now)
 descent.add_control('thrust', targets=['thrust'], opt=True, units='N', lower=0.0, upper=100.0)
