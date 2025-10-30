@@ -163,12 +163,12 @@ traj.add_parameter('sphere_Cd', targets={'climb': ['sphere_Cd'], 'cruise': ['sph
                     opt=False, static_target=True, val=0.47)
 
 
-z_final = 100.0 # m
+z_final = -100.0 # m
 
 # First phase (climb)
 
 climb = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=15, order=3))
+                 transcription=dm.Radau(num_segments=10, order=3))
 
 climb = traj.add_phase('climb', climb)
 
@@ -213,7 +213,7 @@ climb.add_path_constraint('T_climb=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, uppe
 
 # Second phase (cruise)
 cruise = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=20, order=3))
+                 transcription=dm.Radau(num_segments=10, order=3))
 
 cruise = traj.add_phase('cruise', cruise)
 
@@ -229,7 +229,7 @@ cruise.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch
 cruise.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
 cruise.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 cruise.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
+cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 # Controls (without explicit scaling for now)
 cruise.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
 cruise.add_control('T_y', targets=['T_y'], opt=True,units='N', lower=0.0, upper=100.0)
@@ -246,7 +246,7 @@ cruise.add_path_constraint('x', lower=0.0, upper=1500.0, units='m')
 #cruise.add_path_constraint('z', lower=60.0, upper=100.0, units='m')
 
 descent = dm.Phase(ode_class=vtolODE,
-                 transcription=dm.Radau(num_segments=15, order=3))
+                 transcription=dm.Radau(num_segments=10, order=3))
 
 descent = traj.add_phase('descent', descent)
 descent.set_time_options(fix_initial=False, initial_bounds=(0.5, 200), duration_bounds=(0.5, 200), duration_ref=80, units='s')
@@ -261,7 +261,7 @@ descent.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitc
 descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
 descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 descent.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
+descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 descent.add_objective('time', loc='final', ref=120.0) # minimize time
 # Controls (without explicit scaling for now)
 descent.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
@@ -322,7 +322,7 @@ climb.set_state_val('pitch', vals=[-np.pi/2, -np.pi/2], units='rad')
 climb.set_state_val('yaw', vals=[0, 0], units='rad')
 climb.set_state_val('x', vals=[0, 10], units='m')
 climb.set_state_val('y', vals=[0, 0], units='m')
-climb.set_state_val('z', vals=[0, 100], units='m')
+climb.set_state_val('z', vals=[0, z_final], units='m')
 climb.set_control_val('T_x', vals=[0, 0], units='N')
 climb.set_control_val('T_y', vals=[0, 0], units='N')
 climb.set_control_val('T_z', vals=[0, hover_thrust], units='N')
@@ -342,7 +342,7 @@ cruise.set_state_val('pitch', vals=[0, 0], units='rad')
 cruise.set_state_val('yaw', vals=[0, 0], units='rad')
 cruise.set_state_val('x', vals=[10, 500], units='m')
 cruise.set_state_val('y', vals=[0, 0], units='m')
-cruise.set_state_val('z', vals=[100, 100], units='m')
+cruise.set_state_val('z', vals=[z_final, z_final], units='m')
 cruise.set_control_val('T_x', vals=[hover_thrust, hover_thrust], units='N')
 cruise.set_control_val('T_y', vals=[0, 0], units='N')
 cruise.set_control_val('T_z', vals=[0, hover_thrust], units='N')
@@ -362,7 +362,7 @@ descent.set_state_val('pitch', vals=[0, 0], units='rad')
 descent.set_state_val('yaw', vals=[0, 0], units='rad')
 descent.set_state_val('x', vals=[500, 510], units='m')
 descent.set_state_val('y', vals=[0, 0], units='m')
-descent.set_state_val('z', vals=[100, 0], units='m')
+descent.set_state_val('z', vals=[z_final, 0], units='m')
 descent.set_control_val('T_x', vals=[0, 0], units='N')
 descent.set_control_val('T_y', vals=[0, 0], units='N')
 descent.set_control_val('T_z', vals=[hover_thrust, 0], units='N')
