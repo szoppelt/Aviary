@@ -86,11 +86,11 @@ class vtolODE(om.Group):
         self.connect('rho', 'aero.rho')
 
         self.add_subsystem('total_thrust',
-                           om.ExecComp('T=(T_x**2+T_y**2+T_z**2)**0.5'),
+                           om.ExecComp('T = (T_x**2 + T_y**2 + T_z**2)**0.5',
                            T={'units': 'N', 'shape': (nn,)},
                            T_x={'units': 'N', 'shape': (nn,)},
                            T_y={'units': 'N', 'shape': (nn,)},
-                           T_z={'units': 'N', 'shape': (nn,)},
+                           T_z={'units': 'N', 'shape': (nn,)}),
                         promotes_inputs=['T_x', 'T_y', 'T_z'])
 
         # Force resolution
@@ -186,7 +186,7 @@ climb.add_state('pitch_ang_vel', fix_initial=True, fix_final=False, rate_source=
 climb.add_state('yaw_ang_vel', fix_initial=True, fix_final=False, rate_source='yaw_accel',
                 targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=1)
 climb.add_state('roll', fix_initial=True, fix_final=False, rate_source='roll_angle_rate_eq', 
-                targets=['roll'], units='rad', ref=0.0, defect_ref=0.0)
+                targets=['roll'], units='rad', ref=1, defect_ref=1)
 climb.add_state('pitch', fix_initial=True, fix_final=False, rate_source='pitch_angle_rate_eq', 
                 targets=['pitch'], units='rad', ref=np.pi/2, defect_ref=np.pi/2)
 climb.add_state('yaw', fix_initial=True, fix_final=False, rate_source='yaw_angle_rate_eq', 
@@ -206,9 +206,9 @@ climb.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper
 climb.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
-climb.add_path_constraint('T=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
+climb.add_path_constraint('T_climb=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
 #climb.add_path_constraint('x', lower=0.0, upper=1000, units='m')
-climb.add_path_constraint('y', lower=0.0, upper=10, units='m')
+#climb.add_path_constraint('y', lower=0.0, upper=10, units='m')
 
 
 # Second phase (cruise)
@@ -226,7 +226,7 @@ cruise.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 cruise.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=1)
 cruise.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=np.pi/2, defect_ref=np.pi/2)
 cruise.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=1)
-cruise.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=0.0, defect_ref=0.0)
+cruise.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
 cruise.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 cruise.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
 cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
@@ -240,9 +240,9 @@ cruise.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, uppe
 #cruise.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
 #cruise.add_boundary_constraint('z', loc='initial', equals=z_final, units='m')
 cruise.add_boundary_constraint('z', loc='final', equals=z_final, units='m')
-cruise.add_path_constraint('T=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
+cruise.add_path_constraint('T_cruise=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
 cruise.add_path_constraint('x', lower=0.0, upper=1500.0, units='m')
-cruise.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
+#cruise.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 #cruise.add_path_constraint('z', lower=60.0, upper=100.0, units='m')
 
 descent = dm.Phase(ode_class=vtolODE,
@@ -257,8 +257,8 @@ descent.add_state('roll_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 descent.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_source='pitch_accel', targets=['pitch_ang_vel'], units='rad/s', ref=1, defect_ref=1)
 descent.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=1)
 descent.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=1)
-descent.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=0.0, defect_ref=0.0)
-descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=0.0, defect_ref=0.0)
+descent.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=1)
+descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
 descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
 descent.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
 descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=100, defect_ref=2.0)
@@ -271,9 +271,9 @@ descent.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upp
 descent.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
-cruise.add_path_constraint('T=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
+cruise.add_path_constraint('T_descent=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=19.62) # upper = mg
 #descent.add_path_constraint('x', lower=0.0, upper=1000.0, units='m')
-descent.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
+#descent.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 
 
 
@@ -430,12 +430,9 @@ print("\n=== Checking Angles ===")
 for phase_name in ['climb', 'cruise', 'descent']:
     alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
     beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
-    gamma = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.gamma')
-    chi = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.chi')
 
     print(f"\n{phase_name}:")
-    for angle_name, angle_val in [('alpha', alpha), ('beta', beta),
-                                  ('gamma', gamma), ('chi', chi)]:
+    for angle_name, angle_val in [('alpha', alpha), ('beta', beta)]:
         print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
               f"max={np.rad2deg(angle_val.max()):.2f} deg")
         if np.any(np.isnan(angle_val)):
