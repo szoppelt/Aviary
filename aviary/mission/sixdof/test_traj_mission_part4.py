@@ -163,7 +163,7 @@ traj.add_parameter('sphere_Cd', targets={'climb': ['sphere_Cd'], 'cruise': ['sph
                     opt=False, static_target=True, val=0.47)
 
 
-z_final = -100.0 # m
+z_final = 100.0 # m
 
 # First phase (climb)
 
@@ -206,7 +206,7 @@ climb.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper
 climb.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 climb.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
-climb.add_path_constraint('T_climb=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
+#climb.add_path_constraint('T_climb=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
 #climb.add_path_constraint('x', lower=0.0, upper=1000, units='m')
 #climb.add_path_constraint('y', lower=0.0, upper=10, units='m')
 
@@ -240,7 +240,7 @@ cruise.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, uppe
 #cruise.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
 #cruise.add_boundary_constraint('z', loc='initial', equals=z_final, units='m')
 cruise.add_boundary_constraint('z', loc='final', equals=z_final, units='m')
-cruise.add_path_constraint('T_cruise=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
+#cruise.add_path_constraint('T_cruise=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
 cruise.add_path_constraint('x', lower=0.0, upper=1500.0, units='m')
 #cruise.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 #cruise.add_path_constraint('z', lower=60.0, upper=100.0, units='m')
@@ -259,9 +259,9 @@ descent.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source
 descent.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=1)
 descent.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=1)
 descent.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=1)
-descent.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
-descent.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-descent.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+descent.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=800.0, defect_ref=8.0)
+descent.add_state('y', fix_initial=False, fix_final=True, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
+descent.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 descent.add_objective('time', loc='final', ref=120.0) # minimize time
 # Controls (without explicit scaling for now)
 descent.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
@@ -270,8 +270,8 @@ descent.add_control('T_z', targets=['T_z'], opt=True,units='N', lower=0.0, upper
 descent.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
 descent.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
-descent.add_path_constraint('T_descent=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
+#descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
+#descent.add_path_constraint('T_descent=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
 #descent.add_path_constraint('x', lower=0.0, upper=1000.0, units='m')
 #descent.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 

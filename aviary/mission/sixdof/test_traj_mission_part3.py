@@ -436,55 +436,55 @@ for phase_name in ['climb', 'cruise', 'descent']:
 
 dm.run_problem(p, run_driver=True, simulate=True)
 
-#exp_out = traj.simulate()
+exp_out = traj.simulate()
 
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
-sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation.db').get_case('final')
+# sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
+# sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation.db').get_case('final')
 
-t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
-z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
-             for phs in ['climb', 'cruise','descent'])
-x_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
+# t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
+# z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
+#              for phs in ['climb', 'cruise','descent'])
+# x_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
 
-t_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
-z_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
-             for phs in ['climb', 'cruise','descent'])
-x_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
-             for phs in ['climb', 'cruise', 'descent'])
+# t_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
+# z_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
+#              for phs in ['climb', 'cruise','descent'])
+# x_exp = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
+#              for phs in ['climb', 'cruise', 'descent'])
 
-fig, ax = plt.subplots(figsize=(12 , 6))
-fig.suptitle('UAV Mission Trajectory')
-ax_tz = plt.subplot2grid((1, 1), (0, 0))
-ax_xz = plt.subplot2grid((1, 1), (1, 0))
+# fig, ax = plt.subplots(figsize=(12 , 6))
+# fig.suptitle('UAV Mission Trajectory')
+# ax_tz = plt.subplot2grid((1, 1), (0, 0))
+# ax_xz = plt.subplot2grid((1, 1), (1, 0))
 
-ax_tz.set_xlabel('t (s)')
-ax_tz.set_ylabel('z (m)')
-ax_xz.set_xlabel('x (m)')
-ax_xz.set_ylabel('z (m)')
+# ax_tz.set_xlabel('t (s)')
+# ax_tz.set_ylabel('z (m)')
+# ax_xz.set_xlabel('x (m)')
+# ax_xz.set_ylabel('z (m)')
 
-for phs in ['climb', 'cruise', 'descent']:
-    ax_tz.plot(t_exp[phs], z_exp[phs], '-', marker=None, color='C0', label='simulation')
-    ax_tz.plot(t_sol[phs], z_sol[phs], 'o', mfc='C1', mec='C1', ms=3, label='solution')
-    ax_xz.plot(x_exp[phs], z_exp[phs], '-', marker=None, color='C0', label='simulation')
-    ax_xz.plot(x_sol[phs], z_sol[phs], 'o', mfc='C1', mec='C1', ms=3, label='solution')
+# for phs in ['climb', 'cruise', 'descent']:
+#     ax_tz.plot(t_exp[phs], z_exp[phs], '-', marker=None, color='C0', label='simulation')
+#     ax_tz.plot(t_sol[phs], z_sol[phs], 'o', mfc='C1', mec='C1', ms=3, label='solution')
+#     ax_xz.plot(x_exp[phs], z_exp[phs], '-', marker=None, color='C0', label='simulation')
+#     ax_xz.plot(x_sol[phs], z_sol[phs], 'o', mfc='C1', mec='C1', ms=3, label='solution')
 
-ax_tz.legend()
-ax_xz.legend()
+# ax_tz.legend()
+# ax_xz.legend()
 
-plt.show() 
+# plt.show() 
 
-# Plot altitude vs time across all phases
-# for ph in ['climb', 'cruise', 'descent']:
-#     t = exp_out.get_val(f'traj.{ph}.timeseries.time')
-#     z = exp_out.get_val(f'traj.{ph}.timeseries.z')
-#     plt.plot(t, z, label=ph)
-#     plt.legend()
-#     plt.xlabel('Time (s)')
-#     plt.ylabel('Altitude z (m)')
-#     plt.title('VTOL Trajectory with Climb, Cruise, Descent')
-#     plt.show()
+#Plot altitude vs time across all phases
+for ph in ['climb', 'cruise', 'descent']:
+    t = exp_out.get_val(f'traj.{ph}.timeseries.time')
+    z = exp_out.get_val(f'traj.{ph}.timeseries.z')
+    plt.plot(t, z, label=ph)
+    plt.legend()
+    plt.xlabel('Time (s)')
+    plt.ylabel('Altitude z (m)')
+    plt.title('VTOL Trajectory with Climb, Cruise, Descent')
+    plt.show()
 
