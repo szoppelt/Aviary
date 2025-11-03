@@ -161,15 +161,15 @@ traj.add_parameter('sphere_radius', units='m',
                     opt=False, static_target=True, val=0.12)
 traj.add_parameter('sphere_Cd', targets={'climb': ['sphere_Cd'], 'cruise': ['sphere_Cd'], 'descent': ['sphere_Cd']},
                     opt=False, static_target=True, val=0.47)
-traj.add_parameter('lx', units='N*m', 
-                   targets={'climb': ['lx'], 'cruise': ['lx'], 'descent': ['lx']},
-                   opt=False, static_target=True)
-traj.add_parameter('ly', units='N*m', 
-                   targets={'climb': ['ly'], 'cruise': ['ly'], 'descent': ['ly']},
-                   opt=False, static_target=True)
-traj.add_parameter('lz', units='N*m', 
-                   targets={'climb': ['lz'], 'cruise': ['lz'], 'descent': ['lz']},
-                   opt=False, static_target=True)
+# traj.add_parameter('lx', units='N*m', 
+#                    targets={'climb': ['lx'], 'cruise': ['lx'], 'descent': ['lx']},
+#                    opt=False, static_target=True)
+# traj.add_parameter('ly', units='N*m', 
+#                    targets={'climb': ['ly'], 'cruise': ['ly'], 'descent': ['ly']},
+#                    opt=False, static_target=True)
+# traj.add_parameter('lz', units='N*m', 
+#                    targets={'climb': ['lz'], 'cruise': ['lz'], 'descent': ['lz']},
+#                    opt=False, static_target=True)
 
 
 z_final = 100.0 # m
@@ -211,9 +211,9 @@ climb.add_state('z', fix_initial=True, fix_final=False, rate_source='dz_dt',
 climb.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
 climb.add_control('T_y', targets=['T_y'], opt=True,units='N', lower=0.0, upper=100.0)
 climb.add_control('T_z', targets=['T_z'], opt=True,units='N', lower=0.0, upper=100.0)
-# climb.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# climb.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# climb.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
+climb.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+climb.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+climb.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 climb.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
 #climb.add_path_constraint('T_climb=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
 #climb.add_path_constraint('x', lower=0.0, upper=1000, units='m')
@@ -243,9 +243,9 @@ cruise.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', t
 cruise.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
 cruise.add_control('T_y', targets=['T_y'], opt=True,units='N', lower=0.0, upper=100.0)
 cruise.add_control('T_z', targets=['T_z'], opt=True,units='N', lower=0.0, upper=100.0)
-# cruise.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# cruise.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# cruise.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
+cruise.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+cruise.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+cruise.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 #cruise.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
 #cruise.add_boundary_constraint('z', loc='initial', equals=z_final, units='m')
 cruise.add_boundary_constraint('z', loc='final', equals=z_final, units='m')
@@ -276,9 +276,9 @@ descent.add_objective('time', loc='final', ref=120.0) # minimize time
 descent.add_control('T_x', targets=['T_x'], opt=True,units='N', lower=0.0, upper=100.0)
 descent.add_control('T_y', targets=['T_y'], opt=True,units='N', lower=0.0, upper=100.0)
 descent.add_control('T_z', targets=['T_z'], opt=True,units='N', lower=0.0, upper=100.0)
-# descent.add_control('lx', targets=['lx'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# descent.add_control('ly', targets=['ly'], opt=True, units='N*m', lower=-5.0, upper=5.0)
-# descent.add_control('lz', targets=['lz'], opt=True, units='N*m', lower=-5.0, upper=5.0)
+descent.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+descent.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+descent.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 #descent.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
 #descent.add_path_constraint('T_descent=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
 #descent.add_path_constraint('x', lower=0.0, upper=1000.0, units='m')
@@ -305,9 +305,7 @@ p.set_val('traj.parameters:J_xz', val=0.0, units='kg*m**2')
 p.set_val('traj.parameters:sphere_radius', val=0.12, units='m')
 p.set_val('traj.parameters:sphere_Cd', val=0.47)
 p.set_val('traj.parameters:g', val=9.81, units='m/s**2')
-p.set_val('traj.parameters:lx', val=0.0, units='N*m')
-p.set_val('traj.parameters:ly', val=0.0, units='N*m')
-p.set_val('traj.parameters:lz', val=0.0, units='N*m')
+
 
 climb = p.model.traj.phases.climb
 cruise = p.model.traj.phases.cruise
@@ -338,9 +336,9 @@ climb.set_state_val('z', vals=[0, z_final], units='m')
 climb.set_control_val('T_x', vals=[0, 0], units='N')
 climb.set_control_val('T_y', vals=[0, 0], units='N')
 climb.set_control_val('T_z', vals=[0, hover_thrust], units='N')
-# climb.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
-# climb.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
-# climb.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
+climb.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
+climb.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
+climb.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
 cruise.set_time_val(initial=40.0, duration=80.0, units='s')
 cruise.set_state_val('u', vals=[10, 0], units='m/s')
@@ -358,9 +356,9 @@ cruise.set_state_val('z', vals=[z_final, z_final], units='m')
 cruise.set_control_val('T_x', vals=[hover_thrust, hover_thrust], units='N')
 cruise.set_control_val('T_y', vals=[0, 0], units='N')
 cruise.set_control_val('T_z', vals=[0, hover_thrust], units='N')
-# cruise.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
-# cruise.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
-# cruise.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
+cruise.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
+cruise.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
+cruise.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
 descent.set_time_val(initial=120, duration=40, units='s')
 descent.set_state_val('u', vals=[0, 0], units='m/s')
@@ -378,9 +376,9 @@ descent.set_state_val('z', vals=[z_final, 0], units='m')
 descent.set_control_val('T_x', vals=[0, 0], units='N')
 descent.set_control_val('T_y', vals=[0, 0], units='N')
 descent.set_control_val('T_z', vals=[hover_thrust, 0], units='N')
-# descent.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
-# descent.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
-# descent.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
+descent.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
+descent.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
+descent.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
 p.run_model()
 print("\n=== Checking Phase Continuity ===")
