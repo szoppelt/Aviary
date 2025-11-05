@@ -340,7 +340,7 @@ climb.set_state_val('y', vals=[0, 0], units='m')
 climb.set_state_val('z', vals=[0, z_final], units='m')
 climb.set_control_val('T_x', vals=[0, 0], units='N')
 climb.set_control_val('T_y', vals=[0, 0], units='N')
-climb.set_control_val('T_z', vals=[0, weight*1.5], units='N')
+climb.set_control_val('T_z', vals=[0, -weight*1.5], units='N')
 climb.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 climb.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 climb.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
@@ -360,7 +360,7 @@ cruise.set_state_val('y', vals=[0, 0], units='m')
 cruise.set_state_val('z', vals=[z_final, z_final], units='m')
 cruise.set_control_val('T_x', vals=[1.28, 1.28], units='N')
 cruise.set_control_val('T_y', vals=[0, 0], units='N')
-cruise.set_control_val('T_z', vals=[weight, weight], units='N')
+cruise.set_control_val('T_z', vals=[-weight, -weight], units='N')
 cruise.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 cruise.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 cruise.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
@@ -380,7 +380,7 @@ descent.set_state_val('y', vals=[0, 0], units='m')
 descent.set_state_val('z', vals=[z_final, 0], units='m')
 descent.set_control_val('T_x', vals=[0, 0], units='N')
 descent.set_control_val('T_y', vals=[0, 0], units='N')
-descent.set_control_val('T_z', vals=[weight*0.5, 0], units='N')
+descent.set_control_val('T_z', vals=[-weight*0.5, 0], units='N')
 descent.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 descent.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
@@ -455,13 +455,17 @@ for phase_name in ['climb', 'cruise', 'descent']:
         if np.any(np.isnan(angle_val)):
             print(f"   ERROR: {angle_name} contains NaN!")
 
-dm.run_problem(p, run_driver=True, simulate=True)
+dm.run_problem(p, 
+               run_driver=True,
+               simulate=True,
+               solution_record_file='dymos_solution_4.db', 
+               simulation_record_file='dymos_simulation_4.db')
 
-exp_out = traj.simulate()
+#exp_out = traj.simulate()
 
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
-#sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation.db').get_case('final')
+sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_4.db').get_case('final')
+sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_4.db').get_case('final')
 
 t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
              for phs in ['climb', 'cruise', 'descent'])
@@ -470,52 +474,55 @@ z_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
 x_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
              for phs in ['climb', 'cruise', 'descent'])
 
-#t_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
-#             for phs in ['climb', 'cruise', 'descent'])
-#z_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
-#             for phs in ['climb', 'cruise','descent'])
-#x_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
-#             for phs in ['climb', 'cruise', 'descent'])
+t_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
+            for phs in ['climb', 'cruise', 'descent'])
+z_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.z'.format(phs)))
+            for phs in ['climb', 'cruise','descent'])
+x_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
+            for phs in ['climb', 'cruise', 'descent'])
 
 for ph in ['climb', 'cruise', 'descent']:
-    plt.plot(t_sol[ph], z_sol[ph], label=ph)
-    plt.legend()
+    plt.plot(t_sol[ph], z_sol[ph], 'o', mfc='C1', mec='C1', ms=3)
+    plt.plot(t_sim[ph], z_sim[ph], '-', color='C0')
     plt.xlabel('time (s)')
     plt.ylabel('Altitude (m)')
     plt.title('Optimized Trajectory Plot - z v time')
 
+plt.legend(labels=['Solution', 'Simulation'])
 plt.show()
 
 for ph in ['climb', 'cruise', 'descent']:
-    plt.plot(x_sol[ph], z_sol[ph], label=ph)
+    plt.plot(x_sol[ph], z_sol[ph], 'o', mfc='C1', mec='C1', ms=3)
+    plt.plot(x_sim[ph], z_sim[ph], '-', color='C0')
     plt.legend()
     plt.xlabel('Distance (m)')
     plt.ylabel('Altitude (m)')
     plt.title('Optimized Trajectory Plot - z v x')
 
+plt.legend(labels=['Solution', 'Simulation'])
 plt.show()
 
 
-# Plot altitude vs time across all phases
-for ph in ['climb', 'cruise', 'descent']:
-    t = exp_out.get_val(f'traj.{ph}.timeseries.time')
-    z = exp_out.get_val(f'traj.{ph}.timeseries.z')
-    plt.plot(t, z, label=ph)
-    plt.legend()
-    plt.xlabel('Time (s)')
-    plt.ylabel('Altitude z (m)')
-    plt.title('VTOL Trajectory with Climb, Cruise, Descent')
+# # Plot altitude vs time across all phases
+# for ph in ['climb', 'cruise', 'descent']:
+#     t = exp_out.get_val(f'traj.{ph}.timeseries.time')
+#     z = exp_out.get_val(f'traj.{ph}.timeseries.z')
+#     plt.plot(t, z, label=ph)
+#     plt.legend()
+#     plt.xlabel('Time (s)')
+#     plt.ylabel('Altitude z (m)')
+#     plt.title('VTOL Trajectory with Climb, Cruise, Descent')
     
-plt.show()
+# plt.show()
 
-for ph in ['climb', 'cruise', 'descent']:
-    x = exp_out.get_val(f'traj.{ph}.timeseries.x')
-    plt.plot(x, z, label=ph)
-    plt.legend()
-    plt.xlabel('x (m)')
-    plt.ylabel('z (m)')
-    plt.title('altitude v distance trajectory')
-plt.show()
+# for ph in ['climb', 'cruise', 'descent']:
+#     x = exp_out.get_val(f'traj.{ph}.timeseries.x')
+#     plt.plot(x, z, label=ph)
+#     plt.legend()
+#     plt.xlabel('x (m)')
+#     plt.ylabel('z (m)')
+#     plt.title('altitude v distance trajectory')
+# plt.show()
 
 # Create plots with correct grid
 # fig = plt.figure(figsize=(14, 10))
