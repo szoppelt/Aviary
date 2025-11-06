@@ -458,14 +458,17 @@ for phase_name in ['climb', 'cruise', 'descent']:
 dm.run_problem(p, 
                run_driver=True,
                simulate=True,
-               solution_record_file='dymos_solution_4.db', 
-               simulation_record_file='dymos_simulation_4.db')
+               solution_record_file='dymos_solution_7.db', 
+               simulation_record_file='dymos_simulation_7.db')
 
 #exp_out = traj.simulate()
 
+obj = p.get_val('traj.descent.timeseries.time', units='s')[-1]
+print(f'Objective value: {obj}')
+
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_4.db').get_case('final')
-sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_4.db').get_case('final')
+sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_7.db').get_case('final')
+sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_7.db').get_case('final')
 
 t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
              for phs in ['climb', 'cruise', 'descent'])
