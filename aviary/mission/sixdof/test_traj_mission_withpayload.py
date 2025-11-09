@@ -192,7 +192,7 @@ climb1 = dm.Phase(ode_class=vtolODE,
 
 climb1 = traj.add_phase('climb1', climb1)
 
-climb1.set_time_options(fix_initial=True, duration_bounds=(5, 100), duration_ref=40, units='s')
+climb1.set_time_options(fix_initial=True, duration_bounds=(5, 100), duration_ref=30, units='s')
 climb1.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', 
                 targets=['u'], units='m/s', ref=1, defect_ref=1)
 climb1.add_state('v', fix_initial=True, fix_final=False, rate_source='dy_accel', 
@@ -237,7 +237,7 @@ cruise1 = dm.Phase(ode_class=vtolODE,
 
 cruise1 = traj.add_phase('cruise1', cruise1)
 
-cruise1.set_time_options(fix_initial=False, initial_bounds=(10, 100), duration_bounds=(30, 200), duration_ref=80, units='s')
+cruise1.set_time_options(fix_initial=False, initial_bounds=(10, 100), duration_bounds=(30, 200), duration_ref=40, units='s')
 cruise1.add_state('u', fix_initial=False, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=10, defect_ref=1)
 cruise1.add_state('v', fix_initial=False, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 cruise1.add_state('w', fix_initial=False, fix_final=False, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -269,7 +269,7 @@ descent1 = dm.Phase(ode_class=vtolODE,
                  transcription=dm.Radau(num_segments=10, order=3))
 
 descent1 = traj.add_phase('descent1', descent1)
-descent1.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=40, units='s')
+descent1.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
 descent1.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 descent1.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 descent1.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -279,7 +279,7 @@ descent1.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 descent1.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-descent1.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+descent1.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
 descent1.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
 descent1.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 descent1.add_objective('time', loc='final', ref=120.0) # minimize time
@@ -295,9 +295,63 @@ descent1.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 #descent1.add_path_constraint('x', lower=0.0, upper=1000.0, units='m')
 #descent1.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 
+climb2 = dm.Phase(ode_class=vtolODE,
+                 transcription=dm.Radau(num_segments=10, order=3))
+
+climb2 = traj.add_phase('climb2', climb2)
+climb2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+climb2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_state('roll_ang_vel', fix_initial=False, fix_final=False, rate_source='roll_accel', targets=['roll_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+climb2.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_source='pitch_accel', targets=['pitch_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+climb2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+climb2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
+climb2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
+climb2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
+climb2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+climb2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
+climb2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+
+cruise2 = dm.Phase(ode_class=vtolODE,
+                 transcription=dm.Radau(num_segments=10, order=3))
+
+cruise2 = traj.add_phase('cruise2', cruise2)
+cruise2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+cruise2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
+cruise2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
+cruise2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
+cruise2.add_state('roll_ang_vel', fix_initial=False, fix_final=False, rate_source='roll_accel', targets=['roll_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+cruise2.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_source='pitch_accel', targets=['pitch_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+cruise2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+cruise2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
+cruise2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
+cruise2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
+cruise2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+cruise2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
+cruise2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+
+descent2 = dm.Phase(ode_class=vtolODE,
+                 transcription=dm.Radau(num_segments=10, order=3))
+
+descent2 = traj.add_phase('descent2', descent2)
+descent2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+descent2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
+descent2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
+descent2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
+descent2.add_state('roll_ang_vel', fix_initial=False, fix_final=False, rate_source='roll_accel', targets=['roll_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+descent2.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_source='pitch_accel', targets=['pitch_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+descent2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
+descent2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
+descent2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
+descent2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
+descent2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+descent2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
+descent2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 
 
-traj.link_phases(['climb1', 'cruise1', 'descent1'],
+
+traj.link_phases(['climb1', 'cruise1', 'descent1', 'climb2', 'cruise2', 'descent2'],
                     vars=['time', 'u', 'v', 'w',
                           'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
                           'roll', 'pitch', 'yaw', 'x', 'y', 'z'],
