@@ -549,74 +549,74 @@ descent2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
 p.run_model()
-print("\n=== Checking Phase Continuity ===")
-for state in ['u', 'v', 'w',
-                          'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
-                          'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
-    climb1_end = p.get_val(f'traj.phases.climb1.timeseries.{state}')[-1]
-    cruise1_start = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[0]
-    cruise1_end = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[-1]
-    descent1_start = p.get_val(f'traj.phases.descent1.timeseries.{state}')[0]
+# print("\n=== Checking Phase Continuity ===")
+# for state in ['u', 'v', 'w',
+#                           'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
+#                           'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
+#     climb1_end = p.get_val(f'traj.phases.climb1.timeseries.{state}')[-1]
+#     cruise1_start = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[0]
+#     cruise1_end = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[-1]
+#     descent1_start = p.get_val(f'traj.phases.descent1.timeseries.{state}')[0]
 
-    print(f"\n{state}:")
-    print(f"   climb1 end:    {climb1_end}")
-    print(f"   cruise1 start:   {cruise1_start}  gap:  {abs(climb1_end-cruise1_start)}")
-    print(f"   cruise1 end:   {cruise1_end}")
-    print(f"   descent1 start:   {descent1_start}  (gap:  {abs(cruise1_end-descent1_start)})")
+#     print(f"\n{state}:")
+#     print(f"   climb1 end:    {climb1_end}")
+#     print(f"   cruise1 start:   {cruise1_start}  gap:  {abs(climb1_end-cruise1_start)}")
+#     print(f"   cruise1 end:   {cruise1_end}")
+#     print(f"   descent1 start:   {descent1_start}  (gap:  {abs(cruise1_end-descent1_start)})")
 
-z_cruise1 = p.get_val('traj.phases.cruise1.timeseries.z')
-print(f"\n=== cruise1 Altitude Check ===")
-print(f"   z range: [{z_cruise1.min():.2f}, {z_cruise1.max():.2f}]")
-print(f"   Constraint: [150, 50]")
-if z_cruise1.min() < 150 or z_cruise1.max() > 50:
-    print("  WARNING: Initial guess violates cruise1 path constraint!")
+# z_cruise1 = p.get_val('traj.phases.cruise1.timeseries.z')
+# print(f"\n=== cruise1 Altitude Check ===")
+# print(f"   z range: [{z_cruise1.min():.2f}, {z_cruise1.max():.2f}]")
+# print(f"   Constraint: [150, 50]")
+# if z_cruise1.min() < 150 or z_cruise1.max() > 50:
+#     print("  WARNING: Initial guess violates cruise1 path constraint!")
 
-print("\n=== Checking Dynamics Magnitudes ===")
-for phase_name in traj_names:
-    for accel in ['dx_accel', 'dy_accel', 'dz_accel',
-                  'roll_accel', 'pitch_accel', 'yaw_accel']:
-        val = p.get_val(f'traj.phases.{phase_name}.rhs_all.{accel}')
-        print(f"{phase_name}.{accel}: min={val.min():.2e}, max={val.max():.2e}, mean={np.abs(val).mean():.2e}")
+# print("\n=== Checking Dynamics Magnitudes ===")
+# for phase_name in traj_names:
+#     for accel in ['dx_accel', 'dy_accel', 'dz_accel',
+#                   'roll_accel', 'pitch_accel', 'yaw_accel']:
+#         val = p.get_val(f'traj.phases.{phase_name}.rhs_all.{accel}')
+#         print(f"{phase_name}.{accel}: min={val.min():.2e}, max={val.max():.2e}, mean={np.abs(val).mean():.2e}")
 
-        # Flag is accelerations are huge
-        if np.abs(val).max() > 100:
-            print(f"   WARNING: Very large accelerations!")
+#         # Flag is accelerations are huge
+#         if np.abs(val).max() > 100:
+#             print(f"   WARNING: Very large accelerations!")
 
-print("\n=== Checking Forces ===")
-for phase_name in traj_names: 
-    Fx = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fx')
-    Fy = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fy')
-    Fz = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fz')
-    T_x = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_x')
-    T_y = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_y')
-    T_z = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_z')
-    drag = p.get_val(f'traj.phases.{phase_name}.rhs_all.aero.drag')
-    T_mag = np.sqrt(T_x**2 + T_y**2 + T_z**2)
+# print("\n=== Checking Forces ===")
+# for phase_name in traj_names: 
+#     Fx = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fx')
+#     Fy = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fy')
+#     Fz = p.get_val(f'traj.phases.{phase_name}.rhs_all.forces.Fz')
+#     T_x = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_x')
+#     T_y = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_y')
+#     T_z = p.get_val(f'traj.phases.{phase_name}.rhs_all.T_z')
+#     drag = p.get_val(f'traj.phases.{phase_name}.rhs_all.aero.drag')
+#     T_mag = np.sqrt(T_x**2 + T_y**2 + T_z**2)
 
-    print(f"\n{phase_name}:")
-    print(f"   T_x:  {T_x.mean():.2f} N")
-    print(f"   T_y:  {T_y.mean():.2f} N")
-    print(f"   T_z:  {T_z.mean():.2f} N")
-    print(f"   T_mag:  {T_mag.mean():.2f} N")
-    print(f"   Drag:  {drag.mean():.2f} N")
-    print(f"   Fx: min={Fx.min():.2f}, max={Fx.max():.2f}, mean={Fx.mean():.2f}")
-    print(f"   Fy: min={Fy.min():.2f}, max={Fy.max():.2f}, mean={Fy.mean():.2f}")
-    print(f"   Fz: min={Fz.min():.2f}, max={Fz.max():.2f}, mean={Fz.mean():.2f}")
+#     print(f"\n{phase_name}:")
+#     print(f"   T_x:  {T_x.mean():.2f} N")
+#     print(f"   T_y:  {T_y.mean():.2f} N")
+#     print(f"   T_z:  {T_z.mean():.2f} N")
+#     print(f"   T_mag:  {T_mag.mean():.2f} N")
+#     print(f"   Drag:  {drag.mean():.2f} N")
+#     print(f"   Fx: min={Fx.min():.2f}, max={Fx.max():.2f}, mean={Fx.mean():.2f}")
+#     print(f"   Fy: min={Fy.min():.2f}, max={Fy.max():.2f}, mean={Fy.mean():.2f}")
+#     print(f"   Fz: min={Fz.min():.2f}, max={Fz.max():.2f}, mean={Fz.mean():.2f}")
 
-    if np.abs(Fx).max() > 500 or np.abs(Fz).max() > 500:
-        print(f"   ERROR: Forces are way too large!")
+#     if np.abs(Fx).max() > 500 or np.abs(Fz).max() > 500:
+#         print(f"   ERROR: Forces are way too large!")
 
-print("\n=== Checking Angles ===")
-for phase_name in traj_names:
-    alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
-    beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
+# print("\n=== Checking Angles ===")
+# for phase_name in traj_names:
+#     alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
+#     beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
 
-    print(f"\n{phase_name}:")
-    for angle_name, angle_val in [('alpha', alpha), ('beta', beta)]:
-        print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
-              f"max={np.rad2deg(angle_val.max()):.2f} deg")
-        if np.any(np.isnan(angle_val)):
-            print(f"   ERROR: {angle_name} contains NaN!")
+#     print(f"\n{phase_name}:")
+#     for angle_name, angle_val in [('alpha', alpha), ('beta', beta)]:
+#         print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
+#               f"max={np.rad2deg(angle_val.max()):.2f} deg")
+#         if np.any(np.isnan(angle_val)):
+#             print(f"   ERROR: {angle_name} contains NaN!")
 
 dm.run_problem(p, 
                run_driver=True,
@@ -626,7 +626,7 @@ dm.run_problem(p,
 
 #exp_out = traj.simulate()
 
-obj = p.get_val('traj.descent12.timeseries.time', units='s')[-1]
+obj = p.get_val('traj.descent2.timeseries.time', units='s')[-1]
 print(f'Objective value: {obj}')
 
 # Post processing
