@@ -141,26 +141,6 @@ traj = dm.Trajectory()
 traj_names = ['climb1', 'cruise1', 'descent1', 'climb2', 'cruise2', 'descent2']
 
 # Parameters (before payload)
-traj.add_parameter('mass', units='kg', 
-                   targets={'climb1': ['mass'], 'cruise1': ['mass'], 'descent1': ['mass'],
-                            'climb2': ['mass'], 'cruise2': ['mass'], 'descent2': ['mass']},
-                   opt=False, static_target=True)
-traj.add_parameter('J_xx', units='kg * m**2', 
-                   targets={'climb1': ['J_xx'], 'cruise1': ['J_xx'], 'descent1': ['J_xx'],
-                            'climb2': ['J_xx'], 'cruise2': ['J_xx'], 'descent2': ['J_xx']},
-                   opt=False, static_target=True)
-traj.add_parameter('J_yy', units='kg * m**2', 
-                   targets={'climb1': ['J_yy'], 'cruise1': ['J_yy'], 'descent1': ['J_yy'],
-                            'climb2': ['J_yy'], 'cruise2': ['J_yy'], 'descent2': ['J_yy']},
-                   opt=False, static_target=True)
-traj.add_parameter('J_zz', units='kg * m**2', 
-                   targets={'climb1': ['J_zz'], 'cruise1': ['J_zz'], 'descent1': ['J_zz'],
-                            'climb2': ['J_zz'], 'cruise2': ['J_zz'], 'descent2': ['J_zz']},
-                   opt=False, static_target=True)
-traj.add_parameter('J_xz', units='kg * m**2', 
-                   targets={'climb1': ['J_xz'], 'cruise1': ['J_xz'], 'descent1': ['J_xz'],
-                            'climb2': ['J_xz'], 'cruise2': ['J_xz'], 'descent2': ['J_xz']},
-                   opt=False, static_target=True)
 traj.add_parameter('g', units='m / s**2', 
                    targets={'climb1': ['g'], 'cruise1': ['g'], 'descent1': ['g'],
                             'climb2': ['g'], 'cruise2': ['g'], 'descent2': ['g']},
@@ -183,8 +163,10 @@ traj.add_parameter('sphere_Cd', targets={'climb1': ['sphere_Cd'], 'cruise1': ['s
 #                    opt=False, static_target=True)
 
 
-x_payload = 100.0 # m; payload coordinate (100, 0, 0)
-z_final = 100.0 # m; z altitude to fly to 
+x_payload = 500.0 # m; payload coordinate (500, 0, 0)
+z_final = 100.0 # m; z altitude to fly to for both climbs/cruise
+y_final = 500.0 # m; final coordinate for y-direction (500, 500, 0)
+# Overall 
 # First phase (climb1)
 
 climb1 = dm.Phase(ode_class=vtolODE,
@@ -193,6 +175,11 @@ climb1 = dm.Phase(ode_class=vtolODE,
 climb1 = traj.add_phase('climb1', climb1)
 
 climb1.set_time_options(fix_initial=True, duration_bounds=(5, 100), duration_ref=30, units='s')
+climb1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
+climb1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
+climb1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
+climb1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+climb1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 climb1.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', 
                 targets=['u'], units='m/s', ref=1, defect_ref=1)
 climb1.add_state('v', fix_initial=True, fix_final=False, rate_source='dy_accel', 
@@ -238,6 +225,11 @@ cruise1 = dm.Phase(ode_class=vtolODE,
 cruise1 = traj.add_phase('cruise1', cruise1)
 
 cruise1.set_time_options(fix_initial=False, initial_bounds=(10, 100), duration_bounds=(30, 200), duration_ref=40, units='s')
+cruise1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
+cruise1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
+cruise1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
+cruise1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+cruise1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 cruise1.add_state('u', fix_initial=False, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=10, defect_ref=1)
 cruise1.add_state('v', fix_initial=False, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 cruise1.add_state('w', fix_initial=False, fix_final=False, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -270,6 +262,11 @@ descent1 = dm.Phase(ode_class=vtolODE,
 
 descent1 = traj.add_phase('descent1', descent1)
 descent1.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+descent1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
+descent1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
+descent1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
+descent1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+descent1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 descent1.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 descent1.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 descent1.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -279,10 +276,9 @@ descent1.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 descent1.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-descent1.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+descent1.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
 descent1.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
 descent1.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
-descent1.add_objective('time', loc='final', ref=120.0) # minimize time
 # Controls (without explicit scaling for now)
 descent1.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
 descent1.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
@@ -300,24 +296,45 @@ climb2 = dm.Phase(ode_class=vtolODE,
 
 climb2 = traj.add_phase('climb2', climb2)
 climb2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
-climb2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
-climb2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
-climb2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
+climb2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
+climb2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
+climb2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+climb2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
+climb2.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_state('v', fix_initial=True, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
+climb2.add_state('w', fix_initial=True, fix_final=False, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
 climb2.add_state('roll_ang_vel', fix_initial=False, fix_final=False, rate_source='roll_accel', targets=['roll_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
 climb2.add_state('pitch_ang_vel', fix_initial=False, fix_final=False, rate_source='pitch_accel', targets=['pitch_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
 climb2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source='yaw_accel', targets=['yaw_ang_vel'], units='rad/s', ref=1, defect_ref=0.1)
 climb2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 climb2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 climb2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-climb2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
+climb2.add_state('x', fix_initial=True, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
 climb2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-climb2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+climb2.add_state('z', fix_initial=True, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+climb2.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
+climb2.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
+climb2.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, upper=100.0)
+climb2.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+climb2.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+climb2.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+
+climb2.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
+#climb1.add_path_constraint('T_climb1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
+climb2.add_path_constraint('x', lower=0.0, upper=100, units='m')
+
 
 cruise2 = dm.Phase(ode_class=vtolODE,
                  transcription=dm.Radau(num_segments=10, order=3))
 
 cruise2 = traj.add_phase('cruise2', cruise2)
 cruise2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+cruise2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
+cruise2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
+cruise2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
+cruise2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+cruise2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 cruise2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 cruise2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 cruise2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -327,15 +344,31 @@ cruise2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_source
 cruise2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 cruise2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 cruise2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-cruise2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
-cruise2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-cruise2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+cruise2.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
+cruise2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=y_final, defect_ref=2.0)
+cruise2.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+cruise2.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
+cruise2.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
+cruise2.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, upper=100.0)
+cruise2.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+cruise2.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+cruise2.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+
+cruise2.add_boundary_constraint('z', loc='final', lower=z_final - 20, upper=z_final + 20, units='m')
+#cruise1.add_path_constraint('T_cruise1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
+cruise2.add_boundary_constraint('x', loc='final', lower=x_payload - 20, upper=x_payload + 20, units='m')
+cruise2.add_boundary_constraint('y', loc='final', lower=y_final - 20, upper=y_final + 20, units='m')
 
 descent2 = dm.Phase(ode_class=vtolODE,
                  transcription=dm.Radau(num_segments=10, order=3))
 
 descent2 = traj.add_phase('descent2', descent2)
 descent2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
+descent2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
+descent2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
+descent2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
+descent2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+descent2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 descent2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 descent2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
 descent2.add_state('w', fix_initial=False, fix_final=True, rate_source='dz_accel', targets=['w'], units='m/s', ref=1, defect_ref=0.1)
@@ -345,9 +378,16 @@ descent2.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 descent2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 descent2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 descent2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-descent2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=10, defect_ref=1.0)
-descent2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
+descent2.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
+descent2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=y_final, defect_ref=2.0)
 descent2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+descent2.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
+descent2.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
+descent2.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, upper=100.0)
+descent2.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+descent2.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+descent2.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+descent2.add_objective('time', loc='final', ref=240)
 
 
 
@@ -365,31 +405,30 @@ p.setup(check=True)
 
 # Initial guesses
 
-p.set_val('traj.parameters:mass', val=2.0, units='kg')
-p.set_val('traj.parameters:J_xx', val=0.2, units='kg*m**2')
-p.set_val('traj.parameters:J_yy', val=0.2, units='kg*m**2')
-p.set_val('traj.parameters:J_zz', val=0.2, units='kg*m**2')
-p.set_val('traj.parameters:J_xz', val=0.0, units='kg*m**2')
 p.set_val('traj.parameters:sphere_radius', val=0.5, units='m')
 p.set_val('traj.parameters:sphere_Cd', val=0.47)
 p.set_val('traj.parameters:g', val=9.81, units='m/s**2')
-
-
-climb1 = p.model.traj.phases.climb1
-cruise1 = p.model.traj.phases.cruise1
-descent1 = p.model.traj.phases.descent1
-
-climb1.set_time_options(fix_initial=True)
-climb1.set_time_val(initial=0.0, duration=40, units='s')
 
 # Hover thrust (T=W=mg)
 weight1 = 2 * 9.81 # before payload
 weight2 = 2.2 * 9.81 # after payload
 
+
+climb1 = p.model.traj.phases.climb1
+cruise1 = p.model.traj.phases.cruise1
+descent1 = p.model.traj.phases.descent1
+climb2 = p.model.traj.phases.climb2
+cruise2 = p.model.traj.phases.cruise2
+descent2 = p.model.traj.phases.descent2
+
+climb1.set_time_options(fix_initial=True)
+climb1.set_time_val(initial=0.0, duration=30, units='s')
+
 #climb1.add_boundary_constraint('z', loc='initial', equals=0.0, units='m')
 #climb1.add_boundary_constraint('u', loc='initial', equals=0.0, units='m/s')
 #climb1.add_boundary_constraint('v', loc='initial', equals=0.0, units='m/s')
 #climb1.add_boundary_constraint('w', loc='initial', equals=0.0, units='m/s')
+
 climb1.set_state_val('u', vals=[0, 0], units='m/s')
 climb1.set_state_val('v', vals=[0, 0], units='m/s')
 climb1.set_state_val('w', vals=[0, 2.5], units='m/s')
@@ -404,12 +443,12 @@ climb1.set_state_val('y', vals=[0, 0], units='m')
 climb1.set_state_val('z', vals=[0, z_final], units='m')
 climb1.set_control_val('T_x', vals=[0, 0], units='N')
 climb1.set_control_val('T_y', vals=[0, 0], units='N')
-climb1.set_control_val('T_z', vals=[0, -weight*1.5], units='N')
+climb1.set_control_val('T_z', vals=[0, -weight1*1.5], units='N')
 climb1.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 climb1.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 climb1.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
-cruise1.set_time_val(initial=40.0, duration=80.0, units='s')
+cruise1.set_time_val(initial=30.0, duration=60.0, units='s')
 cruise1.set_state_val('u', vals=[10, 10], units='m/s')
 cruise1.set_state_val('v', vals=[0, 0], units='m/s')
 cruise1.set_state_val('w', vals=[0, 0], units='m/s')
@@ -419,17 +458,17 @@ cruise1.set_state_val('yaw_ang_vel', vals=[0, 0], units='rad/s')
 cruise1.set_state_val('roll', vals=[0, 0], units='rad')
 cruise1.set_state_val('pitch', vals=[0, 0], units='rad')
 cruise1.set_state_val('yaw', vals=[0, 0], units='rad')
-cruise1.set_state_val('x', vals=[10, 810], units='m')
+cruise1.set_state_val('x', vals=[10, 500], units='m')
 cruise1.set_state_val('y', vals=[0, 0], units='m')
 cruise1.set_state_val('z', vals=[z_final, z_final], units='m')
 cruise1.set_control_val('T_x', vals=[1.28, 1.28], units='N')
 cruise1.set_control_val('T_y', vals=[0, 0], units='N')
-cruise1.set_control_val('T_z', vals=[-weight, -weight], units='N')
+cruise1.set_control_val('T_z', vals=[-weight1, -weight1], units='N')
 cruise1.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 cruise1.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 cruise1.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
-descent1.set_time_val(initial=120, duration=40, units='s')
+descent1.set_time_val(initial=90, duration=30, units='s')
 descent1.set_state_val('u', vals=[0, 0], units='m/s')
 descent1.set_state_val('v', vals=[0, 0], units='m/s')
 descent1.set_state_val('w', vals=[2.5, 0], units='m/s')
@@ -439,16 +478,17 @@ descent1.set_state_val('yaw_ang_vel', vals=[0, 0], units='rad/s')
 descent1.set_state_val('roll', vals=[0, 0], units='rad')
 descent1.set_state_val('pitch', vals=[0, 0], units='rad')
 descent1.set_state_val('yaw', vals=[0, 0], units='rad')
-descent1.set_state_val('x', vals=[810, 820], units='m')
+descent1.set_state_val('x', vals=[500, 500], units='m')
 descent1.set_state_val('y', vals=[0, 0], units='m')
 descent1.set_state_val('z', vals=[z_final, 0], units='m')
 descent1.set_control_val('T_x', vals=[0, 0], units='N')
 descent1.set_control_val('T_y', vals=[0, 0], units='N')
-descent1.set_control_val('T_z', vals=[-weight*0.5, 0], units='N')
+descent1.set_control_val('T_z', vals=[-weight1*0.5, 0], units='N')
 descent1.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 descent1.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent1.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
+climb2.set_time_val(initial=120, duration=30, units='s')
 climb2.set_state_val('u', vals=[0, 0], units='m/s')
 climb2.set_state_val('v', vals=[0, 0], units='m/s')
 climb2.set_state_val('w', vals=[0, 2.5], units='m/s')
@@ -458,18 +498,19 @@ climb2.set_state_val('yaw_ang_vel', vals=[0, 0], units='rad/s')
 climb2.set_state_val('roll', vals=[0, 0], units='rad')
 climb2.set_state_val('pitch', vals=[0, 0], units='rad')
 climb2.set_state_val('yaw', vals=[0, 0], units='rad')
-climb2.set_state_val('x', vals=[0, 10], units='m')
+climb2.set_state_val('x', vals=[500, 510], units='m')
 climb2.set_state_val('y', vals=[0, 0], units='m')
 climb2.set_state_val('z', vals=[0, z_final], units='m')
 climb2.set_control_val('T_x', vals=[0, 0], units='N')
 climb2.set_control_val('T_y', vals=[0, 0], units='N')
-climb2.set_control_val('T_z', vals=[0, -weight*1.5], units='N')
+climb2.set_control_val('T_z', vals=[0, -weight2*1.5], units='N')
 climb2.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 climb2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 climb2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
+cruise2.set_time_val(initial=150, duration=60, units='s')
 cruise2.set_state_val('u', vals=[0, 0], units='m/s')
-cruise2.set_state_val('v', vals=[0, 0], units='m/s')
+cruise2.set_state_val('v', vals=[10, 10], units='m/s')
 cruise2.set_state_val('w', vals=[0, 2.5], units='m/s')
 cruise2.set_state_val('roll_ang_vel', vals=[0, 0], units='rad/s')
 cruise2.set_state_val('pitch_ang_vel', vals=[0, 0], units='rad/s')
@@ -477,31 +518,32 @@ cruise2.set_state_val('yaw_ang_vel', vals=[0, 0], units='rad/s')
 cruise2.set_state_val('roll', vals=[0, 0], units='rad')
 cruise2.set_state_val('pitch', vals=[0, 0], units='rad')
 cruise2.set_state_val('yaw', vals=[0, 0], units='rad')
-cruise2.set_state_val('x', vals=[0, 10], units='m')
-cruise2.set_state_val('y', vals=[0, 0], units='m')
+cruise2.set_state_val('x', vals=[510, 510], units='m')
+cruise2.set_state_val('y', vals=[0, 500], units='m')
 cruise2.set_state_val('z', vals=[0, z_final], units='m')
 cruise2.set_control_val('T_x', vals=[0, 0], units='N')
-cruise2.set_control_val('T_y', vals=[0, 0], units='N')
-cruise2.set_control_val('T_z', vals=[0, -weight*1.5], units='N')
+cruise2.set_control_val('T_y', vals=[1.4, 1.4], units='N')
+cruise2.set_control_val('T_z', vals=[0, -weight2*1.5], units='N')
 cruise2.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 cruise2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 cruise2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
+descent2.set_time_val(initial=210, duration=30, units='s')
 descent2.set_state_val('u', vals=[0, 0], units='m/s')
 descent2.set_state_val('v', vals=[0, 0], units='m/s')
-descent2.set_state_val('w', vals=[0, 2.5], units='m/s')
+descent2.set_state_val('w', vals=[2.5, 0], units='m/s')
 descent2.set_state_val('roll_ang_vel', vals=[0, 0], units='rad/s')
 descent2.set_state_val('pitch_ang_vel', vals=[0, 0], units='rad/s')
 descent2.set_state_val('yaw_ang_vel', vals=[0, 0], units='rad/s')
 descent2.set_state_val('roll', vals=[0, 0], units='rad')
 descent2.set_state_val('pitch', vals=[0, 0], units='rad')
 descent2.set_state_val('yaw', vals=[0, 0], units='rad')
-descent2.set_state_val('x', vals=[0, 10], units='m')
-descent2.set_state_val('y', vals=[0, 0], units='m')
-descent2.set_state_val('z', vals=[0, z_final], units='m')
+descent2.set_state_val('x', vals=[510, 510], units='m')
+descent2.set_state_val('y', vals=[500, 500], units='m')
+descent2.set_state_val('z', vals=[z_final, 0], units='m')
 descent2.set_control_val('T_x', vals=[0, 0], units='N')
 descent2.set_control_val('T_y', vals=[0, 0], units='N')
-descent2.set_control_val('T_z', vals=[0, -weight*1.5], units='N')
+descent2.set_control_val('T_z', vals=[-weight2*0.5, 0], units='N')
 descent2.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 descent2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
