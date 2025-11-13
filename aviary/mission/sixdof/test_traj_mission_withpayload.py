@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import openmdao.api as om
 import dymos as dm
 from dymos.models.atmosphere.atmos_1976 import USatm1976Comp
@@ -214,7 +215,7 @@ climb1.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
 climb1.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 climb1.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
 #climb1.add_path_constraint('T_climb1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
-climb1.add_path_constraint('x', lower=0.0, upper=100, units='m')
+climb1.add_path_constraint('x', lower=0.0, upper=50.0, units='m')
 #climb1.add_path_constraint('y', lower=0.0, upper=10, units='m')
 
 
@@ -251,9 +252,10 @@ cruise1.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
 cruise1.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 #cruise1.add_path_constraint('z', lower=z_final - 50.0, upper=z_final + 50.0, units='m')
 #cruise1.add_boundary_constraint('z', loc='initial', equals=z_final, units='m')
-cruise1.add_boundary_constraint('z', loc='final', lower=z_final - 20, upper=z_final + 20, units='m')
+cruise1.add_boundary_constraint('z', loc='final', lower=z_final - 20, upper=z_final + 20, units='m', scaler=0.01)
 #cruise1.add_path_constraint('T_cruise1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
-cruise1.add_boundary_constraint('x', loc='final', equals=x_payload, units='m')
+cruise1.add_boundary_constraint('x', loc='final', equals=x_payload, units='m', scaler=0.002)
+#cruise1.add_path_constraint('y', loc='final', lower=-5.0, upper=5.0, units='m')
 #cruise1.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
 #cruise1.add_path_constraint('z', lower=60.0, upper=100.0, units='m')
 
@@ -276,7 +278,7 @@ descent1.add_state('yaw_ang_vel', fix_initial=False, fix_final=False, rate_sourc
 descent1.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll_angle_rate_eq', targets=['roll'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 descent1.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
-descent1.add_state('x', fix_initial=False, fix_final=True, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
+descent1.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
 descent1.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
 descent1.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 # Controls (without explicit scaling for now)
@@ -286,10 +288,12 @@ descent1.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, 
 descent1.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
 descent1.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
 descent1.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+descent1.add_boundary_constraint('x', loc='final', equals=x_payload, units='m', scaler=0.002)
+descent1.add_boundary_constraint('y', loc='final', equals=0.0, units='m', scaler=0.01)
 #descent1.add_boundary_constraint('z', loc='final', equals=0.0, units='m', scaler=0.01)
 #descent1.add_path_constraint('T_descent1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
-#descent1.add_path_constraint('x', lower=0.0, upper=1000.0, units='m')
-#descent1.add_path_constraint('y', lower=0.0, upper=10.0, units='m')
+descent1.add_path_constraint('x', lower=0.0, upper=x_payload + 20, units='m')
+#descent1.add_path_constraint('y', lower=-5.0, upper=5.0, units='m')
 
 climb2 = dm.Phase(ode_class=vtolODE,
                  transcription=dm.Radau(num_segments=10, order=3))
@@ -312,7 +316,7 @@ climb2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch
 climb2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
 climb2.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
 climb2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=10, defect_ref=0.5)
-climb2.add_state('z', fix_initial=False, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
+climb2.add_state('z', fix_initial=True, fix_final=False, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 climb2.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
 climb2.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
 climb2.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, upper=100.0)
@@ -322,7 +326,7 @@ climb2.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
 
 climb2.add_boundary_constraint('z', loc='final', equals=z_final, units='m', scaler=0.01)
 #climb1.add_path_constraint('T_climb1=(T_x**2+T_y**2+T_z**2)**0.5', lower=0.0, upper=25) # upper = mg
-climb2.add_path_constraint('x', lower=0.0, upper=100, units='m')
+climb2.add_path_constraint('x', lower=x_payload-20, upper=x_payload+20, units='m')
 
 
 cruise2 = dm.Phase(ode_class=vtolODE,
@@ -379,7 +383,7 @@ descent2.add_state('roll', fix_initial=False, fix_final=False, rate_source='roll
 descent2.add_state('pitch', fix_initial=False, fix_final=False, rate_source='pitch_angle_rate_eq', targets=['pitch'], units='rad', ref=1, defect_ref=0.1)
 descent2.add_state('yaw', fix_initial=False, fix_final=False, rate_source='yaw_angle_rate_eq', targets=['yaw'], units='rad', ref=1, defect_ref=0.1)
 descent2.add_state('x', fix_initial=False, fix_final=False, rate_source='dx_dt', targets=['x'], units='m', ref=x_payload, defect_ref=2.0)
-descent2.add_state('y', fix_initial=False, fix_final=True, rate_source='dy_dt', targets=['y'], units='m', ref=y_final, defect_ref=2.0)
+descent2.add_state('y', fix_initial=False, fix_final=False, rate_source='dy_dt', targets=['y'], units='m', ref=y_final, defect_ref=2.0)
 descent2.add_state('z', fix_initial=False, fix_final=True, rate_source='dz_dt', targets=['z'], units='m', ref=z_final, defect_ref=2.0)
 descent2.add_control('T_x', targets=['T_x'], opt=True, units='N', lower=-100.0, upper=100.0)
 descent2.add_control('T_y', targets=['T_y'], opt=True, units='N', lower=-100.0, upper=100.0)
@@ -387,6 +391,8 @@ descent2.add_control('T_z', targets=['T_z'], opt=True, units='N', lower=-100.0, 
 descent2.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
 descent2.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
 descent2.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+descent2.add_boundary_constraint('y', loc='final', equals=y_final, units='m', scaler=0.01)
+descent2.add_boundary_constraint('x', loc='final', equals=x_payload, units='m', scaler=0.01)
 descent2.add_objective('time', loc='final', ref=240)
 
 
@@ -461,7 +467,7 @@ cruise1.set_state_val('yaw', vals=[0, 0], units='rad')
 cruise1.set_state_val('x', vals=[0, x_payload], units='m')
 cruise1.set_state_val('y', vals=[0, 0], units='m')
 cruise1.set_state_val('z', vals=[z_final, z_final], units='m')
-cruise1.set_control_val('T_x', vals=[1.28, 1.28], units='N')
+cruise1.set_control_val('T_x', vals=[1.33, 1.33], units='N')
 cruise1.set_control_val('T_y', vals=[0, 0], units='N')
 cruise1.set_control_val('T_z', vals=[-weight1, -weight1], units='N')
 cruise1.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
@@ -520,10 +526,10 @@ cruise2.set_state_val('pitch', vals=[0, 0], units='rad')
 cruise2.set_state_val('yaw', vals=[0, 0], units='rad')
 cruise2.set_state_val('x', vals=[x_payload, x_payload], units='m')
 cruise2.set_state_val('y', vals=[0, y_final], units='m')
-cruise2.set_state_val('z', vals=[0, z_final], units='m')
+cruise2.set_state_val('z', vals=[z_final, z_final], units='m')
 cruise2.set_control_val('T_x', vals=[0, 0], units='N')
-cruise2.set_control_val('T_y', vals=[1.31, 1.31], units='N')
-cruise2.set_control_val('T_z', vals=[0, -weight2*1.5], units='N')
+cruise2.set_control_val('T_y', vals=[1.35, 1.35], units='N')
+cruise2.set_control_val('T_z', vals=[-weight2, -weight2], units='N')
 cruise2.set_control_val('lx', vals=[0.0, 0.0], units='N*m')
 cruise2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 cruise2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
@@ -549,38 +555,43 @@ descent2.set_control_val('ly', vals=[0.0, 0.0], units='N*m')
 descent2.set_control_val('lz', vals=[0.0, 0.0], units='N*m')
 
 p.run_model()
-# print("\n=== Checking Phase Continuity ===")
-# for state in ['u', 'v', 'w',
-#                           'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
-#                           'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
-#     climb1_end = p.get_val(f'traj.phases.climb1.timeseries.{state}')[-1]
-#     cruise1_start = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[0]
-#     cruise1_end = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[-1]
-#     descent1_start = p.get_val(f'traj.phases.descent1.timeseries.{state}')[0]
+print("\n=== Checking Phase Continuity ===")
+for state in ['u', 'v', 'w',
+                          'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
+                          'roll', 'pitch', 'yaw', 'x', 'y', 'z']:
+    climb1_end = p.get_val(f'traj.phases.climb1.timeseries.{state}')[-1]
+    cruise1_start = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[0]
+    cruise1_end = p.get_val(f'traj.phases.cruise1.timeseries.{state}')[-1]
+    descent1_start = p.get_val(f'traj.phases.descent1.timeseries.{state}')[0]
+    descent1_end = p.get_val(f'traj.phases.descent1.timeseries.{state}')[-1]
+    climb2_start = p.get_val(f'traj.phases.climb2.timeseries.{state}')[0]
+    climb2_end = p.get_val(f'traj.phases.climb2.timeseries.{state}')[-1]
+    cruise2_start = p.get_val(f'traj.phases.cruise2.timeseries.{state}')[0]
+    cruise2_end = p.get_val(f'traj.phases.cruise2.timeseries.{state}')[-1]
+    descent2_start = p.get_val(f'traj.phases.descent2.timeseries.{state}')[0]
 
-#     print(f"\n{state}:")
-#     print(f"   climb1 end:    {climb1_end}")
-#     print(f"   cruise1 start:   {cruise1_start}  gap:  {abs(climb1_end-cruise1_start)}")
-#     print(f"   cruise1 end:   {cruise1_end}")
-#     print(f"   descent1 start:   {descent1_start}  (gap:  {abs(cruise1_end-descent1_start)})")
+    print(f"\n{state}:")
+    print(f"   climb1 end:    {climb1_end}")
+    print(f"   cruise1 start:   {cruise1_start}  gap:  {abs(climb1_end-cruise1_start)}")
+    print(f"   cruise1 end:   {cruise1_end}")
+    print(f"   descent1 start:   {descent1_start}  (gap:  {abs(cruise1_end-descent1_start)})")
+    print(f"   descent1_end:   {descent1_end}")
+    print(f"   climb2_start:   {climb2_start}   (gap:   {abs(descent1_end - climb2_start)})")
+    print(f"   climb2_end:   {climb2_end}")
+    print(f"   cruise2_start:   {cruise2_start}   (gap:   {abs(climb2_end - cruise2_start)})")
+    print(f"   cruise2_end:   {cruise2_end}")
+    print(f"   descent2_start:   {descent2_start} (gap:   {abs(cruise2_end - descent2_start)})")
 
-# z_cruise1 = p.get_val('traj.phases.cruise1.timeseries.z')
-# print(f"\n=== cruise1 Altitude Check ===")
-# print(f"   z range: [{z_cruise1.min():.2f}, {z_cruise1.max():.2f}]")
-# print(f"   Constraint: [150, 50]")
-# if z_cruise1.min() < 150 or z_cruise1.max() > 50:
-#     print("  WARNING: Initial guess violates cruise1 path constraint!")
+print("\n=== Checking Dynamics Magnitudes ===")
+for phase_name in traj_names:
+    for accel in ['dx_accel', 'dy_accel', 'dz_accel',
+                  'roll_accel', 'pitch_accel', 'yaw_accel']:
+        val = p.get_val(f'traj.phases.{phase_name}.rhs_all.{accel}')
+        print(f"{phase_name}.{accel}: min={val.min():.2e}, max={val.max():.2e}, mean={np.abs(val).mean():.2e}")
 
-# print("\n=== Checking Dynamics Magnitudes ===")
-# for phase_name in traj_names:
-#     for accel in ['dx_accel', 'dy_accel', 'dz_accel',
-#                   'roll_accel', 'pitch_accel', 'yaw_accel']:
-#         val = p.get_val(f'traj.phases.{phase_name}.rhs_all.{accel}')
-#         print(f"{phase_name}.{accel}: min={val.min():.2e}, max={val.max():.2e}, mean={np.abs(val).mean():.2e}")
-
-#         # Flag is accelerations are huge
-#         if np.abs(val).max() > 100:
-#             print(f"   WARNING: Very large accelerations!")
+        # Flag is accelerations are huge
+        if np.abs(val).max() > 100:
+            print(f"   WARNING: Very large accelerations!")
 
 print("\n=== Checking Forces ===")
 for phase_name in traj_names: 
@@ -606,32 +617,34 @@ for phase_name in traj_names:
     if np.abs(Fx).max() > 500 or np.abs(Fz).max() > 500:
         print(f"   ERROR: Forces are way too large!")
 
-# print("\n=== Checking Angles ===")
-# for phase_name in traj_names:
-#     alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
-#     beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
+print("\n=== Checking Angles ===")
+for phase_name in traj_names:
+    alpha = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.alpha')
+    beta = p.get_val(f'traj.phases.{phase_name}.rhs_all.wind_angles.beta')
 
-#     print(f"\n{phase_name}:")
-#     for angle_name, angle_val in [('alpha', alpha), ('beta', beta)]:
-#         print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
-#               f"max={np.rad2deg(angle_val.max()):.2f} deg")
-#         if np.any(np.isnan(angle_val)):
-#             print(f"   ERROR: {angle_name} contains NaN!")
+    print(f"\n{phase_name}:")
+    for angle_name, angle_val in [('alpha', alpha), ('beta', beta)]:
+        print(f"   {angle_name}: min={np.rad2deg(angle_val.min()):.2f} deg, "
+              f"max={np.rad2deg(angle_val.max()):.2f} deg")
+        if np.any(np.isnan(angle_val)):
+            print(f"   ERROR: {angle_name} contains NaN!")
+
+baseline_time = p.get_val(f'traj.descent2.timeseries.time', units='s')[-1]
 
 dm.run_problem(p, 
                run_driver=True,
                simulate=True,
-               solution_record_file='dymos_solution_first.db', 
-               simulation_record_file='dymos_simulation_first.db')
+               solution_record_file='dymos_solution_fourth.db', 
+               simulation_record_file='dymos_simulation_fourth.db')
 
-#exp_out = traj.simulate()
-
-obj = p.get_val('traj.descent2.timeseries.time', units='s')[-1]
-print(f'Objective value: {obj}')
+obj_time = p.get_val('traj.descent2.timeseries.time', units='s')[-1]
+print(f'Objective value: {obj_time} s')
+print(f'Time difference (baseline - objective): {baseline_time - obj_time} s')
+print(f'Percent difference: {obj_time / abs(baseline_time - obj_time) * 100}%')
 
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_7.db').get_case('final')
-sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_7.db').get_case('final')
+sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_fourth.db').get_case('final')
+sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_fourth.db').get_case('final')
 
 t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
              for phs in traj_names)
@@ -651,142 +664,94 @@ x_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
 y_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.y'.format(phs)))
              for phs in traj_names)
 
-for ph in traj_names:
-    plt.plot(t_sol[ph], z_sol[ph], 'o', mfc='C1', mec='C1', ms=3)
-    plt.plot(t_sim[ph], z_sim[ph], '-', color='C0')
-    plt.xlabel('time (s)')
-    plt.ylabel('Altitude (m)')
-    plt.title('Optimized Trajectory Plot - z v time')
+fig = plt.figure(figsize=(12, 9))
+ax = fig.add_subplot(111, projection='3d')
 
-plt.legend(labels=['Solution', 'Simulation'])
+# Plot each phase
+for ph in traj_names:
+    # Simulation (line)
+    ax.plot(x_sim[ph], y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+    # Solution (dots)
+    ax.plot(x_sol[ph], y_sol[ph], z_sol[ph], 'o', 
+            color='C1', markersize=4, markeredgecolor='C1', markerfacecolor='C1')
+
+# Mark the payload pickup location
+ax.plot([x_payload], [0], [0], marker='*', color='gold', 
+        markersize=20, markeredgecolor='black', markeredgewidth=1.5,
+        label='Payload Pickup')
+
+# Mark start and end points
+ax.plot([0], [0], [0], marker='s', color='green', 
+        markersize=10, markeredgecolor='black', label='Start')
+ax.plot([x_payload], [y_final], [0], marker='s', color='red', 
+        markersize=10, markeredgecolor='black', label='End')
+
+# Labels and formatting
+ax.set_xlabel('X Position (m)', fontsize=12, labelpad=10)
+ax.set_ylabel('Y Position (m)', fontsize=12, labelpad=10)
+ax.set_zlabel('Z Position (m)', fontsize=12, labelpad=10)
+ax.set_title('3D Optimized Trajectory\n(Simulation: Line, Solution: Dots)', 
+             fontsize=14, fontweight='bold')
+
+# Legend
+ax.legend(['Simulation', 'Solution Points', 'Payload Pickup', 'Start', 'End'], 
+          loc='upper left', fontsize=10)
+
+# Set viewing angle for better perspective
+ax.view_init(elev=20, azim=45)
+
+# Add grid
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
 plt.show()
 
+# Optional: Create multiple views
+fig2 = plt.figure(figsize=(15, 5))
+
+# Top view (X-Y plane)
+ax1 = fig2.add_subplot(131)
 for ph in traj_names:
-    plt.plot(x_sol[ph], z_sol[ph], 'o', mfc='C1', mec='C1', ms=3)
-    plt.plot(x_sim[ph], z_sim[ph], '-', color='C0')
-    plt.legend()
-    plt.xlabel('Distance (m)')
-    plt.ylabel('Altitude (m)')
-    plt.title('Optimized Trajectory Plot - z v x')
+    ax1.plot(x_sim[ph], y_sim[ph], '-', color='C0', linewidth=2)
+    ax1.plot(x_sol[ph], y_sol[ph], 'o', color='C1', markersize=3)
+ax1.plot(x_payload, 0, marker='*', color='gold', markersize=15, 
+         markeredgecolor='black', markeredgewidth=1.5)
+ax1.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+ax1.plot(x_payload, y_final, 's', color='red', markersize=8, markeredgecolor='black')
+ax1.set_xlabel('X Position (m)')
+ax1.set_ylabel('Y Position (m)')
+ax1.set_title('Top View (X-Y)')
+ax1.grid(True, alpha=0.3)
+ax1.axis('equal')
 
-plt.legend(labels=['Solution', 'Simulation'])
+# Side view (X-Z plane)
+ax2 = fig2.add_subplot(132)
+for ph in traj_names:
+    ax2.plot(x_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+    ax2.plot(x_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
+ax2.plot(x_payload, 0, marker='*', color='gold', markersize=15,
+         markeredgecolor='black', markeredgewidth=1.5)
+ax2.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+ax2.plot(x_payload, 0, 's', color='red', markersize=8, markeredgecolor='black')
+ax2.set_xlabel('X Position (m)')
+ax2.set_ylabel('Z Position (m)')
+ax2.set_title('Side View (X-Z)')
+ax2.grid(True, alpha=0.3)
+
+# Front view (Y-Z plane)
+ax3 = fig2.add_subplot(133)
+for ph in traj_names:
+    ax3.plot(y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+    ax3.plot(y_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
+ax3.plot(0, 0, marker='*', color='gold', markersize=15,
+         markeredgecolor='black', markeredgewidth=1.5)
+ax3.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+ax3.plot(y_final, 0, 's', color='red', markersize=8, markeredgecolor='black')
+ax3.set_xlabel('Y Position (m)')
+ax3.set_ylabel('Z Position (m)')
+ax3.set_title('Front View (Y-Z)')
+ax3.grid(True, alpha=0.3)
+
+plt.tight_layout()
 plt.show()
-
-
-# # Plot altitude vs time across all phases
-# for ph in ['climb1', 'cruise1', 'descent1']:
-#     t = exp_out.get_val(f'traj.{ph}.timeseries.time')
-#     z = exp_out.get_val(f'traj.{ph}.timeseries.z')
-#     plt.plot(t, z, label=ph)
-#     plt.legend()
-#     plt.xlabel('Time (s)')
-#     plt.ylabel('Altitude z (m)')
-#     plt.title('VTOL Trajectory with climb1, cruise1, descent1')
-    
-# plt.show()
-
-# for ph in ['climb1', 'cruise1', 'descent1']:
-#     x = exp_out.get_val(f'traj.{ph}.timeseries.x')
-#     plt.plot(x, z, label=ph)
-#     plt.legend()
-#     plt.xlabel('x (m)')
-#     plt.ylabel('z (m)')
-#     plt.title('altitude v distance trajectory')
-# plt.show()
-
-# Create plots with correct grid
-# fig = plt.figure(figsize=(14, 10))
-# ax_tz = plt.subplot2grid((2, 2), (0, 0))
-# ax_xz = plt.subplot2grid((2, 2), (0, 1))
-# ax_uvw = plt.subplot2grid((2, 2), (1, 0))
-# ax_thrust = plt.subplot2grid((2, 2), (1, 1))
-
-# fig.suptitle('UAV Mission Trajectory', fontsize=16)
-
-# # Time vs altitude
-# ax_tz.set_xlabel('Time (s)')
-# ax_tz.set_ylabel('Altitude (m)')
-# ax_tz.set_title('Altitude vs Time')
-# ax_tz.grid(True)
-
-# for phs in ['climb1', 'cruise1', 'descent1']:
-#     ax_tz.plot(t_sim[phs], -z_sim[phs], '-', color='C0', linewidth=2, label='simulation' if phs == 'climb1' else '')
-#     ax_tz.plot(t_sol[phs], -z_sol[phs], 'o', mfc='C1', mec='C1', ms=4, label='solution' if phs == 'climb1' else '')
-
-# ax_tz.legend()
-
-# # X-Z trajectory
-# ax_xz.set_xlabel('Downrange (m)')
-# ax_xz.set_ylabel('Altitude (m)')
-# ax_xz.set_title('Flight Path')
-# ax_xz.grid(True)
-
-# for phs in ['climb1', 'cruise1', 'descent1']:
-#     ax_xz.plot(x_sim[phs], -z_sim[phs], '-', color='C0', linewidth=2, label='simulation' if phs == 'climb1' else '')
-#     ax_xz.plot(x_sol[phs], -z_sol[phs], 'o', mfc='C1', mec='C1', ms=4, label='solution' if phs == 'climb1' else '')
-
-# ax_xz.legend()
-
-# # Velocity components
-# ax_uvw.set_xlabel('Time (s)')
-# ax_uvw.set_ylabel('Velocity (m/s)')
-# ax_uvw.set_title('Velocity Components')
-# ax_uvw.grid(True)
-
-# for phs in ['climb1', 'cruise1', 'descent1']:
-#     t = t_sim[phs]
-#     u = sim.get_case('final').get_val(f'traj.{phs}.timeseries.u')
-#     v = sim.get_case('final').get_val(f'traj.{phs}.timeseries.v')
-#     w = sim.get_case('final').get_val(f'traj.{phs}.timeseries.w')
-    
-#     if phs == 'climb1':
-#         ax_uvw.plot(t, u, '-', color='C0', label='u (forward)')
-#         ax_uvw.plot(t, v, '-', color='C1', label='v (side)')
-#         ax_uvw.plot(t, w, '-', color='C2', label='w (down)')
-#     else:
-#         ax_uvw.plot(t, u, '-', color='C0')
-#         ax_uvw.plot(t, v, '-', color='C1')
-#         ax_uvw.plot(t, w, '-', color='C2')
-
-# ax_uvw.legend()
-
-# # Thrust components
-# ax_thrust.set_xlabel('Time (s)')
-# ax_thrust.set_ylabel('Thrust (N)')
-# ax_thrust.set_title('Thrust Components')
-# ax_thrust.grid(True)
-
-# for phs in ['climb1', 'cruise1', 'descent1']:
-#     t = t_sim[phs]
-#     T_x = sim.get_case('final').get_val(f'traj.{phs}.timeseries.T_x')
-#     T_y = sim.get_case('final').get_val(f'traj.{phs}.timeseries.T_y')
-#     T_z = sim.get_case('final').get_val(f'traj.{phs}.timeseries.T_z')
-#     T_mag = np.sqrt(T_x**2 + T_y**2 + T_z**2)
-    
-#     if phs == 'climb1':
-#         ax_thrust.plot(t, T_x, '-', color='C0', label='T_x')
-#         ax_thrust.plot(t, T_y, '-', color='C1', label='T_y')
-#         ax_thrust.plot(t, T_z, '-', color='C2', label='T_z')
-#         ax_thrust.plot(t, T_mag, '-', color='black', linewidth=2, label='|T| total')
-#     else:
-#         ax_thrust.plot(t, T_x, '-', color='C0')
-#         ax_thrust.plot(t, T_y, '-', color='C1')
-#         ax_thrust.plot(t, T_z, '-', color='C2')
-#         ax_thrust.plot(t, T_mag, '-', color='black', linewidth=2)
-
-# ax_thrust.axhline(y=hover_thrust, color='red', linestyle='--', label='Weight (mg)')
-# ax_thrust.legend()
-
-# plt.tight_layout()
-# plt.savefig('vtol_trajectory_results.png', dpi=150)
-# print("\nPlot saved as 'vtol_trajectory_results.png'")
-# plt.show()
-
-# # Print final statistics
-# print("\n=== Mission Summary ===")
-# final_time = t_sol['descent1'][-1]
-# final_x = x_sol['descent1'][-1]
-# print(f"Total mission time: {final_time:.2f} s")
-# print(f"Total distance traveled: {final_x:.2f} m")
-# print(f"Average speed: {final_x/final_time:.2f} m/s")
 
