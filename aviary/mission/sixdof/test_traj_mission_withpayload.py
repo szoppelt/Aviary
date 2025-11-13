@@ -145,11 +145,11 @@ traj_names = ['climb1', 'cruise1', 'descent1', 'climb2', 'cruise2', 'descent2']
 traj.add_parameter('g', units='m / s**2', 
                    targets={'climb1': ['g'], 'cruise1': ['g'], 'descent1': ['g'],
                             'climb2': ['g'], 'cruise2': ['g'], 'descent2': ['g']},
-                    opt=False, static_target=True)
+                    opt=False, static_target=True, val=9.81)
 traj.add_parameter('sphere_radius', units='m', 
                    targets={'climb1': ['sphere_radius'], 'cruise1': ['sphere_radius'], 'descent1': ['sphere_radius'],
                             'climb2': ['sphere_radius'], 'cruise2': ['sphere_radius'], 'descent2': ['sphere_radius']},
-                    opt=False, static_target=True, val=0.12)
+                    opt=False, static_target=True, val=0.5)
 traj.add_parameter('sphere_Cd', targets={'climb1': ['sphere_Cd'], 'cruise1': ['sphere_Cd'], 'descent1': ['sphere_Cd'], 
                                          'climb2': ['sphere_Cd'], 'cruise2': ['sphere_Cd'], 'descent2': ['sphere_Cd']},
                     opt=False, static_target=True, val=0.47)
@@ -177,9 +177,9 @@ climb1 = traj.add_phase('climb1', climb1)
 
 climb1.set_time_options(fix_initial=True, duration_bounds=(5, 100), duration_ref=30, units='s')
 climb1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
-climb1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
-climb1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
-climb1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+climb1.add_parameter('J_xx', val=0.20, static_target=True, targets=['J_xx'], units='kg*m**2')
+climb1.add_parameter('J_yy', val=0.20, static_target=True, targets=['J_yy'], units='kg*m**2')
+climb1.add_parameter('J_zz', val=0.20, static_target=True, targets=['J_zz'], units='kg*m**2')
 climb1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 climb1.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', 
                 targets=['u'], units='m/s', ref=1, defect_ref=1)
@@ -227,9 +227,9 @@ cruise1 = traj.add_phase('cruise1', cruise1)
 
 cruise1.set_time_options(fix_initial=False, initial_bounds=(10, 100), duration_bounds=(30, 200), duration_ref=40, units='s')
 cruise1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
-cruise1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
-cruise1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
-cruise1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+cruise1.add_parameter('J_xx', val=0.20, static_target=True, targets=['J_xx'], units='kg*m**2')
+cruise1.add_parameter('J_yy', val=0.20, static_target=True, targets=['J_yy'], units='kg*m**2')
+cruise1.add_parameter('J_zz', val=0.20, static_target=True, targets=['J_zz'], units='kg*m**2')
 cruise1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 cruise1.add_state('u', fix_initial=False, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=10, defect_ref=1)
 cruise1.add_state('v', fix_initial=False, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
@@ -265,9 +265,9 @@ descent1 = dm.Phase(ode_class=vtolODE,
 descent1 = traj.add_phase('descent1', descent1)
 descent1.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
 descent1.add_parameter('mass', val=2, static_target=True, targets=['mass'], units='kg')
-descent1.add_parameter('J_xx', val=0.01152, static_target=True, targets=['J_xx'], units='kg*m**2')
-descent1.add_parameter('J_yy', val=0.01152, static_target=True, targets=['J_yy'], units='kg*m**2')
-descent1.add_parameter('J_zz', val=0.01152, static_target=True, targets=['J_zz'], units='kg*m**2')
+descent1.add_parameter('J_xx', val=0.20, static_target=True, targets=['J_xx'], units='kg*m**2')
+descent1.add_parameter('J_yy', val=0.20, static_target=True, targets=['J_yy'], units='kg*m**2')
+descent1.add_parameter('J_zz', val=0.20, static_target=True, targets=['J_zz'], units='kg*m**2')
 descent1.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 descent1.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 descent1.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
@@ -301,9 +301,9 @@ climb2 = dm.Phase(ode_class=vtolODE,
 climb2 = traj.add_phase('climb2', climb2)
 climb2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
 climb2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
-climb2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
-climb2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
-climb2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+climb2.add_parameter('J_xx', val=0.22, static_target=True, targets=['J_xx'], units='kg*m**2')
+climb2.add_parameter('J_yy', val=0.22, static_target=True, targets=['J_yy'], units='kg*m**2')
+climb2.add_parameter('J_zz', val=0.22, static_target=True, targets=['J_zz'], units='kg*m**2')
 climb2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 climb2.add_state('u', fix_initial=True, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 climb2.add_state('v', fix_initial=True, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
@@ -335,9 +335,9 @@ cruise2 = dm.Phase(ode_class=vtolODE,
 cruise2 = traj.add_phase('cruise2', cruise2)
 cruise2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
 cruise2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
-cruise2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
-cruise2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
-cruise2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+cruise2.add_parameter('J_xx', val=0.22, static_target=True, targets=['J_xx'], units='kg*m**2')
+cruise2.add_parameter('J_yy', val=0.22, static_target=True, targets=['J_yy'], units='kg*m**2')
+cruise2.add_parameter('J_zz', val=0.22, static_target=True, targets=['J_zz'], units='kg*m**2')
 cruise2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 cruise2.add_state('u', fix_initial=False, fix_final=False, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 cruise2.add_state('v', fix_initial=False, fix_final=False, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
@@ -634,8 +634,8 @@ baseline_time = p.get_val(f'traj.descent2.timeseries.time', units='s')[-1]
 dm.run_problem(p, 
                run_driver=True,
                simulate=True,
-               solution_record_file='dymos_solution_fourth.db', 
-               simulation_record_file='dymos_simulation_fourth.db')
+               solution_record_file='dymos_solution_fifth.db', 
+               simulation_record_file='dymos_simulation_fifth.db')
 
 obj_time = p.get_val('traj.descent2.timeseries.time', units='s')[-1]
 print(f'Objective value: {obj_time} s')
@@ -643,8 +643,8 @@ print(f'Time difference (baseline - objective): {baseline_time - obj_time} s')
 print(f'Percent difference: {obj_time / abs(baseline_time - obj_time) * 100}%')
 
 # Post processing
-sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_fourth.db').get_case('final')
-sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_fourth.db').get_case('final')
+sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution_fifth.db').get_case('final')
+sim = om.CaseReader(traj.sim_prob.get_outputs_dir() / 'dymos_simulation_fifth.db').get_case('final')
 
 t_sol = dict((phs, sol.get_val(f'traj.{phs}.timeseries.time'.format(phs)))
              for phs in traj_names)
@@ -664,49 +664,154 @@ x_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.x'.format(phs)))
 y_sim = dict((phs, sim.get_val(f'traj.{phs}.timeseries.y'.format(phs)))
              for phs in traj_names)
 
+#font
+plt.rcParams.update({# Use mathtext, not LaTeX
+                      'text.usetex': False,
+                      # Use the Computer modern font
+                      'font.family': 'serif',
+                      'font.serif': 'cmr10',
+                      'mathtext.fontset': 'cm',
+                      'figure.autolayout': True,
+                      # Use ASCII minus
+                      'axes.unicode_minus': False,})
+
+# fig = plt.figure(figsize=(12, 9))
+# ax = fig.add_subplot(111, projection='3d')
+
+# # Plot each phase
+# for ph in traj_names:
+#     # Simulation (line)
+#     ax.plot(x_sim[ph], y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+#     # Solution (dots)
+#     ax.plot(x_sol[ph], y_sol[ph], z_sol[ph], 'o', 
+#             color='C1', markersize=4, markeredgecolor='C1', markerfacecolor='C1')
+
+# # Mark the payload pickup location
+# ax.plot([x_payload], [0], [0], marker='*', color='gold', 
+#         markersize=20, markeredgecolor='black', markeredgewidth=1.5,
+#         label='Payload Pickup')
+
+# # Mark start and end points
+# ax.plot([0], [0], [0], marker='s', color='green', 
+#         markersize=10, markeredgecolor='black', label='Start')
+# ax.plot([x_payload], [y_final], [0], marker='s', color='red', 
+#         markersize=10, markeredgecolor='black', label='End')
+
+# # Labels and formatting
+# ax.set_xlabel('X Position (m)', fontsize=12, labelpad=10)
+# ax.set_ylabel('Y Position (m)', fontsize=12, labelpad=10)
+# ax.set_zlabel('Z Position (m)', fontsize=12, labelpad=10)
+
+# # Legend
+# ax.legend(['Simulation', 'Solution Points', 'Payload Pickup', 'Start', 'End'], 
+#           loc='upper left', fontsize=10)
+
+# # Set viewing angle for better perspective
+# ax.view_init(elev=20, azim=45)
+
+# # Add grid
+# ax.grid(True, alpha=0.3)
+
+# plt.tight_layout()
+# plt.show()
+
+# # Optional: Create multiple views
+# fig2 = plt.figure(figsize=(15, 5))
+
+# # Top view (X-Y plane)
+# ax1 = fig2.add_subplot(131)
+# for ph in traj_names:
+#     ax1.plot(x_sim[ph], y_sim[ph], '-', color='C0', linewidth=2)
+#     ax1.plot(x_sol[ph], y_sol[ph], 'o', color='C1', markersize=3)
+# ax1.plot(x_payload, 0, marker='*', color='gold', markersize=15, 
+#          markeredgecolor='black', markeredgewidth=1.5)
+# ax1.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+# ax1.plot(x_payload, y_final, 's', color='red', markersize=8, markeredgecolor='black')
+# ax1.set_xlabel('X Position (m)')
+# ax1.set_ylabel('Y Position (m)')
+# ax1.grid(True, alpha=0.3)
+# ax1.axis('equal')
+
+# # Side view (X-Z plane)
+# ax2 = fig2.add_subplot(132)
+# for ph in traj_names:
+#     ax2.plot(x_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+#     ax2.plot(x_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
+# ax2.plot(x_payload, 0, marker='*', color='gold', markersize=15,
+#          markeredgecolor='black', markeredgewidth=1.5)
+# ax2.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+# ax2.plot(x_payload, 0, 's', color='red', markersize=8, markeredgecolor='black')
+# ax2.set_xlabel('X Position (m)')
+# ax2.set_ylabel('Z Position (m)')
+# ax2.grid(True, alpha=0.3)
+
+# # Front view (Y-Z plane)
+# ax3 = fig2.add_subplot(133)
+# for ph in traj_names:
+#     ax3.plot(y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+#     ax3.plot(y_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
+# ax3.plot(0, 0, marker='*', color='gold', markersize=15,
+#          markeredgecolor='black', markeredgewidth=1.5)
+# ax3.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
+# ax3.plot(y_final, 0, 's', color='red', markersize=8, markeredgecolor='black')
+# ax3.set_xlabel('Y Position (m)')
+# ax3.set_ylabel('Z Position (m)')
+# ax3.grid(True, alpha=0.3)
+
+# plt.tight_layout()
+# plt.show()
+
 fig = plt.figure(figsize=(12, 9))
 ax = fig.add_subplot(111, projection='3d')
 
 # Plot each phase
 for ph in traj_names:
     # Simulation (line)
-    ax.plot(x_sim[ph], y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
+    sim_line = ax.plot(x_sim[ph], y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
     # Solution (dots)
-    ax.plot(x_sol[ph], y_sol[ph], z_sol[ph], 'o', 
-            color='C1', markersize=4, markeredgecolor='C1', markerfacecolor='C1')
+    sol_points = ax.plot(x_sol[ph], y_sol[ph], z_sol[ph], 'o', 
+                         color='C1', markersize=4, markeredgecolor='C1', markerfacecolor='C1')
 
 # Mark the payload pickup location
-ax.plot([x_payload], [0], [0], marker='*', color='gold', 
-        markersize=20, markeredgecolor='black', markeredgewidth=1.5,
-        label='Payload Pickup')
+payload_marker = ax.plot([x_payload], [0], [0], marker='*', color='gold', 
+                        markersize=20, markeredgecolor='black', markeredgewidth=1.5,
+                        label='Payload Pickup')
 
 # Mark start and end points
-ax.plot([0], [0], [0], marker='s', color='green', 
-        markersize=10, markeredgecolor='black', label='Start')
-ax.plot([x_payload], [y_final], [0], marker='s', color='red', 
-        markersize=10, markeredgecolor='black', label='End')
+start_marker = ax.plot([0], [0], [0], marker='s', color='green', 
+                       markersize=10, markeredgecolor='black', label='Start')
+end_marker = ax.plot([x_payload], [y_final], [0], marker='s', color='red', 
+                     markersize=10, markeredgecolor='black', label='End')
 
 # Labels and formatting
 ax.set_xlabel('X Position (m)', fontsize=12, labelpad=10)
 ax.set_ylabel('Y Position (m)', fontsize=12, labelpad=10)
 ax.set_zlabel('Z Position (m)', fontsize=12, labelpad=10)
-ax.set_title('3D Optimized Trajectory\n(Simulation: Line, Solution: Dots)', 
-             fontsize=14, fontweight='bold')
 
-# Legend
-ax.legend(['Simulation', 'Solution Points', 'Payload Pickup', 'Start', 'End'], 
-          loc='upper left', fontsize=10)
+# Create custom legend entries with correct colors/markers
+from matplotlib.lines import Line2D
+legend_elements = [
+    Line2D([0], [0], color='C0', linewidth=2, label='Simulation'),
+    Line2D([0], [0], marker='o', color='w', markerfacecolor='C1', 
+           markeredgecolor='C1', markersize=6, label='Solution Points'),
+    Line2D([0], [0], marker='*', color='w', markerfacecolor='gold', 
+           markeredgecolor='black', markeredgewidth=1.5, markersize=12, label='Payload Pickup'),
+    Line2D([0], [0], marker='s', color='w', markerfacecolor='green', 
+           markeredgecolor='black', markersize=8, label='Start'),
+    Line2D([0], [0], marker='s', color='w', markerfacecolor='red', 
+           markeredgecolor='black', markersize=8, label='End')
+]
+ax.legend(handles=legend_elements, loc='upper left', fontsize=10)
 
 # Set viewing angle for better perspective
 ax.view_init(elev=20, azim=45)
 
 # Add grid
 ax.grid(True, alpha=0.3)
-
 plt.tight_layout()
 plt.show()
 
-# Optional: Create multiple views
+# Optional: Create multiple views with master legend
 fig2 = plt.figure(figsize=(15, 5))
 
 # Top view (X-Y plane)
@@ -715,14 +820,15 @@ for ph in traj_names:
     ax1.plot(x_sim[ph], y_sim[ph], '-', color='C0', linewidth=2)
     ax1.plot(x_sol[ph], y_sol[ph], 'o', color='C1', markersize=3)
 ax1.plot(x_payload, 0, marker='*', color='gold', markersize=15, 
-         markeredgecolor='black', markeredgewidth=1.5)
+        markeredgecolor='black', markeredgewidth=1.5)
 ax1.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
 ax1.plot(x_payload, y_final, 's', color='red', markersize=8, markeredgecolor='black')
 ax1.set_xlabel('X Position (m)')
 ax1.set_ylabel('Y Position (m)')
-ax1.set_title('Top View (X-Y)')
 ax1.grid(True, alpha=0.3)
 ax1.axis('equal')
+ax1.text(0.5, -0.18, '(a)', transform=ax1.transAxes, 
+         ha='center', va='top', fontsize=12, fontweight='bold')
 
 # Side view (X-Z plane)
 ax2 = fig2.add_subplot(132)
@@ -730,13 +836,14 @@ for ph in traj_names:
     ax2.plot(x_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
     ax2.plot(x_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
 ax2.plot(x_payload, 0, marker='*', color='gold', markersize=15,
-         markeredgecolor='black', markeredgewidth=1.5)
+        markeredgecolor='black', markeredgewidth=1.5)
 ax2.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
 ax2.plot(x_payload, 0, 's', color='red', markersize=8, markeredgecolor='black')
 ax2.set_xlabel('X Position (m)')
 ax2.set_ylabel('Z Position (m)')
-ax2.set_title('Side View (X-Z)')
 ax2.grid(True, alpha=0.3)
+ax2.text(0.5, -0.18, '(b)', transform=ax2.transAxes, 
+         ha='center', va='top', fontsize=12, fontweight='bold')
 
 # Front view (Y-Z plane)
 ax3 = fig2.add_subplot(133)
@@ -744,14 +851,18 @@ for ph in traj_names:
     ax3.plot(y_sim[ph], z_sim[ph], '-', color='C0', linewidth=2)
     ax3.plot(y_sol[ph], z_sol[ph], 'o', color='C1', markersize=3)
 ax3.plot(0, 0, marker='*', color='gold', markersize=15,
-         markeredgecolor='black', markeredgewidth=1.5)
+        markeredgecolor='black', markeredgewidth=1.5)
 ax3.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
 ax3.plot(y_final, 0, 's', color='red', markersize=8, markeredgecolor='black')
 ax3.set_xlabel('Y Position (m)')
 ax3.set_ylabel('Z Position (m)')
-ax3.set_title('Front View (Y-Z)')
 ax3.grid(True, alpha=0.3)
+ax3.text(0.5, -0.18, '(c)', transform=ax3.transAxes, 
+         ha='center', va='top', fontsize=12, fontweight='bold')
 
-plt.tight_layout()
+# Create master legend for the multi-view figure
+fig2.legend(handles=legend_elements, loc='upper center', 
+           bbox_to_anchor=(0.5, 0.98), ncol=5, fontsize=10, frameon=True)
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])  # Leave room for legend at top
 plt.show()
-
