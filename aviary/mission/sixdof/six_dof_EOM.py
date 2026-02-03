@@ -1,10 +1,10 @@
 import numpy as np
 import openmdao.api as om
 
-class SixDOF_EOM(om.ExplicitComponent):
+class SixDOF_EOl(om.ExplicitComponent):
     """
-    Six DOF EOM component, with particular emphasis for rotorcraft. 
-    ASSUMPTIONS:
+    Six DOF EOl component, with particular emphasis for rotorcraft. 
+    ASSUlPTJ_ONS:
         - Assume Flat Earth model (particularly for rotorcraft)
         - Earth is the internal f.o.r.
         - Gravity is constant and normal to the tangent plane (Earth's surface) -- g = (0 0 G)^T
@@ -31,32 +31,32 @@ class SixDOF_EOM(om.ExplicitComponent):
             'u',
             val=np.zeros(nn),
             units='m/s', # meters per second
-            desc="axial velocity of CM wrt inertial CS resolved in aircraft body fixed CS"
+            desc="axial velocity of Cl wrt inertial CS resolved in aircraft body fixed CS"
         )
 
         self.add_input(
             'v',
             val=np.zeros(nn),
             units='m/s',
-            desc="lateral velocity of CM wrt inertial CS resolved in aircraft body fixed CS"
+            desc="lateral velocity of Cl wrt inertial CS resolved in aircraft body fixed CS"
         )
 
         self.add_input(
             'w',
             val=np.zeros(nn),
             units='m/s',
-            desc="vertical velocity of CM wrt inertial CS resolved in aircraft body fixed CS"
+            desc="vertical velocity of Cl wrt inertial CS resolved in aircraft body fixed CS"
         )
 
         self.add_input(
-            'roll_ang_vel',
+            'roll_angle_vel',
             val=np.zeros(nn),
             units='rad/s', # radians per second
             desc="roll angular velocity of body fixed CS wrt intertial CS"
         )
 
         self.add_input(
-            'pitch_ang_vel',
+            'pitch_angle_vel',
             val=np.zeros(nn),
             units='rad/s',
             desc="pitch angular velocity of body fixed CS wrt intertial CS"
@@ -163,7 +163,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         # Below are the necessary components for the moment of inertia matrix (J)
         # Only xx, yy, zz, and xz are needed (xy and yz are 0 with assumptions)
         # For now, these are separated.
-        # TODO: Rewrite J and EOM in matrix form
+        # TODO: Rewrite J and EOl in matrix form
 
         self.add_input(
             'J_xz',
@@ -171,6 +171,20 @@ class SixDOF_EOM(om.ExplicitComponent):
             units='kg*m**2',
             desc="x-z (top right and bottom left corner of 3x3 matrix, assuming symmetry) " \
             "component"
+        )
+
+        self.add_input(
+            'J_xy',
+            val=np.zeros(1),
+            units='kg*m**2',
+            desc="xy component of moment of inertia matrix"
+        )
+
+        self.add_input(
+            'J_yz',
+            val=np.zeros(1),
+            units='kg*m**2',
+            desc='yz component of inertia matrix'
         )
 
         self.add_input(
@@ -228,8 +242,8 @@ class SixDOF_EOM(om.ExplicitComponent):
             val=np.zeros(nn),
             units='rad/s**2', # radians per second squared
             desc="roll equation, " \
-            "state: roll_ang_vel",
-            tags=['dymos.state_rate_source:roll_ang_vel', 'dymos.state_units:rad/s']
+            "state: p",
+            tags=['dymos.state_rate_source:p', 'dymos.state_units:rad/s']
         )
 
         self.add_output(
@@ -237,8 +251,8 @@ class SixDOF_EOM(om.ExplicitComponent):
             val=np.zeros(nn),
             units='rad/s**2',
             desc="pitch equation, " \
-            "state: pitch_ang_vel",
-            tags=['dymos.state_rate_source:pitch_ang_vel', 'dymos.state_units:rad/s']
+            "state: q",
+            tags=['dymos.state_rate_source:q', 'dymos.state_units:rad/s']
         )
 
         self.add_output(
@@ -246,8 +260,8 @@ class SixDOF_EOM(om.ExplicitComponent):
             val=np.zeros(nn),
             units='rad/s**2',
             desc="yaw equation, " \
-            "state: yaw_ang_vel",
-            tags=['dymos.state_rate_source:yaw_ang_vel', 'dymos.state_units:rad/s']
+            "state: r",
+            tags=['dymos.state_rate_source:r', 'dymos.state_units:rad/s']
         )
 
         self.add_output(
@@ -278,7 +292,7 @@ class SixDOF_EOM(om.ExplicitComponent):
             'dx_dt',
             val=np.zeros(nn),
             units='m/s',
-            desc="x-position derivative of aircraft COM wrt point in NED CS",
+            desc="x-position derivative of aircraft COl wrt point in NED CS",
             tags=['dymos.state_rate_source:x', 'dymos.state_units:m'] 
         )
 
@@ -286,7 +300,7 @@ class SixDOF_EOM(om.ExplicitComponent):
             'dy_dt',
             val=np.zeros(nn),
             units='m/s',
-            desc="y-position derivative of aircraft COM wrt point in NED CS",
+            desc="y-position derivative of aircraft COl wrt point in NED CS",
             tags=['dymos.state_rate_source:y', 'dymos.state_units:m']
         )
 
@@ -294,7 +308,7 @@ class SixDOF_EOM(om.ExplicitComponent):
             'dz_dt',
             val=np.zeros(nn),
             units='m/s',
-            desc="z-position derivative of aircraft COM wrt point in NED CS",
+            desc="z-position derivative of aircraft COl wrt point in NED CS",
             tags=['dymos.state_rate_source:z', 'dymos.state_units:m']
         )
 
@@ -304,7 +318,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='dx_accel', wrt='v', rows=ar, cols=ar)
         self.declare_partials(of='dx_accel', wrt='w', rows=ar, cols=ar)
         self.declare_partials(of='dx_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='dx_accel', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='dx_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='dx_accel', wrt='g')
         self.declare_partials(of='dx_accel', wrt='pitch', rows=ar, cols=ar)
 
@@ -313,7 +327,7 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='dy_accel', wrt='u', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='w', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='dy_accel', wrt='roll_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='dy_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='g')
         self.declare_partials(of='dy_accel', wrt='roll', rows=ar, cols=ar)
         self.declare_partials(of='dy_accel', wrt='pitch', rows=ar, cols=ar)
@@ -322,8 +336,8 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='dz_accel', wrt='Fz', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='v', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='u', rows=ar, cols=ar)
-        self.declare_partials(of='dz_accel', wrt='roll_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='dz_accel', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='dz_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
+        self.declare_partials(of='dz_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='g')
         self.declare_partials(of='dz_accel', wrt='roll', rows=ar, cols=ar)
         self.declare_partials(of='dz_accel', wrt='pitch', rows=ar, cols=ar)
@@ -332,8 +346,10 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='roll_accel', wrt='J_xx')
         self.declare_partials(of='roll_accel', wrt='J_yy')
         self.declare_partials(of='roll_accel', wrt='J_zz')
-        self.declare_partials(of='roll_accel', wrt='roll_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='roll_accel', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='roll_accel', wrt='J_yz')
+        self.declare_partials(of='roll_accel', wrt='J_xy')
+        self.declare_partials(of='roll_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
+        self.declare_partials(of='roll_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='lx', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='lz', rows=ar, cols=ar)
@@ -342,7 +358,9 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='pitch_accel', wrt='J_xx')
         self.declare_partials(of='pitch_accel', wrt='J_yy')
         self.declare_partials(of='pitch_accel', wrt='J_zz')
-        self.declare_partials(of='pitch_accel', wrt='roll_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='pitch_accel', wrt='J_yz')
+        self.declare_partials(of='pitch_accel', wrt='J_xy')
+        self.declare_partials(of='pitch_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='pitch_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='pitch_accel', wrt='ly', rows=ar, cols=ar)
 
@@ -350,23 +368,25 @@ class SixDOF_EOM(om.ExplicitComponent):
         self.declare_partials(of='yaw_accel', wrt='J_xx')
         self.declare_partials(of='yaw_accel', wrt='J_yy')
         self.declare_partials(of='yaw_accel', wrt='J_zz')
-        self.declare_partials(of='yaw_accel', wrt='roll_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='yaw_accel', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='yaw_accel', wrt='J_yz')
+        self.declare_partials(of='yaw_accel', wrt='J_xy')
+        self.declare_partials(of='yaw_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
+        self.declare_partials(of='yaw_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='lx', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='lz', rows=ar, cols=ar)
 
-        self.declare_partials(of='roll_angle_rate_eq', wrt='roll_ang_vel', rows=ar, cols=ar)
-        self.declare_partials(of='roll_angle_rate_eq', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='roll_angle_rate_eq', wrt='roll_angle_vel', rows=ar, cols=ar)
+        self.declare_partials(of='roll_angle_rate_eq', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_angle_rate_eq', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_angle_rate_eq', wrt='roll', rows=ar, cols=ar)
         self.declare_partials(of='roll_angle_rate_eq', wrt='pitch', rows=ar, cols=ar)
 
-        self.declare_partials(of='pitch_angle_rate_eq', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='pitch_angle_rate_eq', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='pitch_angle_rate_eq', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='pitch_angle_rate_eq', wrt='roll', rows=ar, cols=ar)
 
-        self.declare_partials(of='yaw_angle_rate_eq', wrt='pitch_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='yaw_angle_rate_eq', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_angle_rate_eq', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_angle_rate_eq', wrt='roll', rows=ar, cols=ar)
         self.declare_partials(of='yaw_angle_rate_eq', wrt='pitch', rows=ar, cols=ar)
@@ -394,7 +414,7 @@ class SixDOF_EOM(om.ExplicitComponent):
 
     def compute(self, inputs, outputs):
         """
-        Compute function for EOM. 
+        Compute function for EOl. 
         TODO: Same as above, potentially rewrite equations for \
               matrix form, and add potential assymetry to moment \
               of inertia matrix.
@@ -407,9 +427,9 @@ class SixDOF_EOM(om.ExplicitComponent):
         u = inputs['u'] # u
         v = inputs['v'] # v
         w = inputs['w'] # w
-        roll_ang_vel = inputs['roll_ang_vel'] # p
-        pitch_ang_vel = inputs['pitch_ang_vel'] # q
-        yaw_ang_vel = inputs['yaw_ang_vel'] # r
+        p = inputs['roll_angle_vel'] # p
+        q = inputs['pitch_angle_vel'] # q
+        r = inputs['yaw_ang_vel'] # r
         roll = inputs['roll'] # phi
         pitch = inputs['pitch'] # theta
         yaw = inputs['yaw'] # psi
@@ -428,6 +448,8 @@ class SixDOF_EOM(om.ExplicitComponent):
         J_xx = inputs['J_xx']
         J_yy = inputs['J_yy']
         J_zz = inputs['J_zz']
+        J_yz = inputs['J_yz']
+        J_xy = inputs['J_xy']
 
         # Resolve gravity in body coordinate system -- denoted with subscript 'b'
         gx_b = -np.sin(pitch) * g
@@ -437,48 +459,97 @@ class SixDOF_EOM(om.ExplicitComponent):
         # TODO: could add external forces and moments here if needed
 
         # Denominator for roll and yaw rate equations
-        Den = J_xx * J_zz - J_xz**2
+        # Den = J_xx * J_zz - J_xz**2
 
         # roll-axis velocity equation
 
-        dx_accel = 1 / mass * Fx + gx_b - w * pitch_ang_vel + v * yaw_ang_vel
+        dx_accel = 1 / mass * Fx + gx_b - w * q + v * r
 
         # pitch-axis velocity equation
 
-        dy_accel = 1 / mass * Fy + gy_b - u * yaw_ang_vel + w * roll_ang_vel
+        dy_accel = 1 / mass * Fy + gy_b - u * r + w * p
 
         # yaw-axis velocity equation
 
-        dz_accel = 1 / mass * Fz + gz_b - v * roll_ang_vel + u * pitch_ang_vel
+        dz_accel = 1 / mass * Fz + gz_b - v * p + u * q
 
         # Roll equation
 
-        roll_accel = (J_xz * (J_xx - J_yy + J_zz) * roll_ang_vel * pitch_ang_vel - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * pitch_ang_vel * yaw_ang_vel + 
-                   J_zz * lx + 
-                   J_xz * lz) / Den
+        roll_accel = (
+            (-1 * (J_xz)**(2) * J_yy + (
+                2 * J_xy * J_xz * J_yz + ( 
+                    -1 * J_xx * (J_yz)**(2) + (
+                        -1 * (J_xy)**( 2 ) * J_zz + J_xx * J_yy * J_zz)))))**(-1) * (
+                            (-1 * J_xz * J_yy + J_xy * J_yz) * (
+                                lz + (J_xx * p * q + (
+                                    -1 * J_yy * p * q + (J_xy * (-1 * (p)**(2) + (q)**(2)) + (
+                                        -1 * J_yz * p * r + J_xz * q * r ))))) + (
+                                            (-1 * (J_yz)**(2) + J_yy * J_zz) * (
+                                                lx + (-1 * J_xz * p * q + (-1 * J_yz * (q)**(2) + (
+                                                    J_xy * p * r + (J_yy * q * r + (
+                                                        -1 * J_zz * q * r + J_yz * (r)**(2))))))) + (
+                                                            J_xz * J_yz + -1 * J_xy * J_zz) * (
+                                                                ly + (J_yz * p * q + (-1 * J_xx * p * r + (
+                                                                    J_zz * p * r + (
+                                                                        -1 * J_xy * q * r + J_xz * ((p)**(2) + -1 * (r)**(2)))))))))
         
         # Pitch equation
 
-        pitch_accel = ((J_zz - J_xx) * roll_ang_vel * yaw_ang_vel - 
-                    J_xz * (roll_ang_vel**2 - yaw_ang_vel**2) + ly) / J_yy
+        pitch_accel = (
+            (-1 * (J_xz)**(2) * J_yy + (
+                2 * J_xy * J_xz * J_yz + (
+                    -1 * J_xx * (J_yz)**(2) + (
+                        -1 * (J_xy)**(2) * J_zz + J_xx * J_yy * J_zz)))))**(-1) * (
+                            (J_xy * J_xz + -1 * J_xx * J_yz) * (
+                                lz + (J_xx * p * q + (
+                                    -1 * J_yy * p * q + (
+                                        J_xy * (-1 * (p)**(2) + (q)**(2)) + (
+                                            -1 * J_yz * p * r + J_xz * q * r))))) + ((
+                                                J_xz * J_yz + -1 * J_xy * J_zz) * (lx + (
+                                                    -1 * J_xz * p * q + (
+                                                        -1 * J_yz * (q)**(2) + (
+                                                            J_xy * p * r + (J_yy * q * r + (
+                                                                -1 * J_zz * q * r + J_yz * (r)**(2))))))) + -1 * (
+                                                                    (J_xz)**(2) + -1 * J_xx * J_zz) * (
+                                                                        ly + (J_yz * p * q + (
+                                                                            -1 * J_xx * p * r + (
+                                                                                J_zz * p * r + (
+                                                                                    -1 * J_xy * q * r + J_xz * (
+                                                                                        (p)**(2) + -1 * (r)**(2)))))))))
         
         # Yaw equation
 
-        yaw_accel = ((J_xx * (J_xx - J_yy) + J_xz**2) * roll_ang_vel * pitch_ang_vel + 
-                  J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel * yaw_ang_vel + 
-                  J_xz * lx + 
-                  J_xz * lz) / Den
-        
+        yaw_accel = ((
+            -1 * (J_xz)**(2) * J_yy + (
+                2 * J_xy * J_xz * J_yz + (
+                    -1 * J_xx * (J_yz)**(2) + (
+                        -1 * (J_xy)**(2) * J_zz + J_xx * J_yy * J_zz )))))**(-1) * (
+                            (-1 * (J_xy)**(2) + J_xx * J_yy) * (
+                                lz + (J_xx * p * q + (
+                                    -1 * J_yy * p * q + (
+                                        J_xy * (-1 * (p)**(2) + (q)**(2)) + (
+                                            -1 * J_yz * p * r + J_xz * q * r))))) + (
+                                                (-1 * J_xz * J_yy + J_xy * J_yz) * (
+                                                    lx + (-1 * J_xz * p * q + (
+                                                        -1 * J_yz * (q)**(2) + (
+                                                            J_xy * p * r + (J_yy * q * r + (
+                                                                -1 * J_zz * q * r + J_yz * (r)**(2))))))) + (
+                                                                    J_xy * J_xz + -1 * J_xx * J_yz) * (
+                                                                        ly + (J_yz * p * q + (
+                                                                            -1 * J_xx * p * r + (
+                                                                                J_zz * p * r + (
+                                                                                    -1 * J_xy * q * r + J_xz * (
+                                                                                        (p)**(2) + -1 * (r)**(2)))))))))
+
         # Kinematic equations
         
-        roll_angle_rate_eq = roll_ang_vel + np.sin(roll) * np.tan(pitch) * pitch_ang_vel + \
-                             np.cos(roll) * np.tan(pitch) * yaw_ang_vel
+        roll_angle_rate_eq = p + np.sin(roll) * np.tan(pitch) * q + \
+                             np.cos(roll) * np.tan(pitch) * r
         
-        pitch_angle_rate_eq = np.cos(roll) * pitch_ang_vel - np.sin(roll) * yaw_ang_vel
+        pitch_angle_rate_eq = np.cos(roll) * q - np.sin(roll) * r
 
-        yaw_angle_rate_eq = np.sin(roll) / np.cos(pitch) * pitch_ang_vel + \
-                            np.cos(roll) / np.cos(pitch) * yaw_ang_vel
+        yaw_angle_rate_eq = np.sin(roll) / np.cos(pitch) * q + \
+                            np.cos(roll) / np.cos(pitch) * r
 
         # Position equations
 
@@ -513,9 +584,9 @@ class SixDOF_EOM(om.ExplicitComponent):
         u = inputs['u'] # u
         v = inputs['v'] # v
         w = inputs['w'] # w
-        roll_ang_vel = inputs['roll_ang_vel'] # p
-        pitch_ang_vel = inputs['pitch_ang_vel'] # q
-        yaw_ang_vel = inputs['yaw_ang_vel'] # r
+        p = inputs['roll_angle_vel'] # p
+        q = inputs['pitch_angle_vel'] # q
+        r = inputs['yaw_ang_vel'] # r
         roll = inputs['roll'] # phi
         pitch = inputs['pitch'] # theta
         yaw = inputs['yaw'] # psi
@@ -534,112 +605,149 @@ class SixDOF_EOM(om.ExplicitComponent):
         J_xx = inputs['J_xx']
         J_yy = inputs['J_yy']
         J_zz = inputs['J_zz']
+        J_xy = inputs['J_xy']
+        J_yz = inputs['J_yz']
 
         # for roll and yaw
-        Den = J_xx * J_zz - J_xz**2
+        # Den = J_xx * J_zz - J_xz**2
 
         J['dx_accel', 'mass'] = -Fx / mass**2
         J['dx_accel', 'Fx'] = 1 / mass
-        J['dx_accel', 'v'] = yaw_ang_vel
-        J['dx_accel', 'w'] = -pitch_ang_vel
+        J['dx_accel', 'v'] = r
+        J['dx_accel', 'w'] = -q
         J['dx_accel', 'yaw_ang_vel'] = v
-        J['dx_accel', 'pitch_ang_vel'] = -w
+        J['dx_accel', 'pitch_angle_vel'] = -w
         J['dx_accel', 'g'] = -np.sin(pitch)
         J['dx_accel', 'pitch'] = -np.cos(pitch) * g
 
         J['dy_accel', 'mass'] = -Fy / mass**2
         J['dy_accel', 'Fy'] = 1 / mass
-        J['dy_accel', 'u'] = -yaw_ang_vel
-        J['dy_accel', 'w'] = roll_ang_vel
+        J['dy_accel', 'u'] = -r
+        J['dy_accel', 'w'] = p
         J['dy_accel', 'yaw_ang_vel'] = -u
-        J['dy_accel', 'roll_ang_vel'] = w
+        J['dy_accel', 'roll_angle_vel'] = w
         J['dy_accel', 'g'] = np.sin(roll) * np.cos(pitch)
         J['dy_accel', 'roll'] = np.cos(roll) * np.cos(pitch) * g
         J['dy_accel', 'pitch'] = -np.sin(roll) * np.sin(pitch) * g
 
         J['dz_accel', 'mass'] = -Fz / mass**2
         J['dz_accel', 'Fz'] = 1 / mass
-        J['dz_accel', 'v'] = -roll_ang_vel
-        J['dz_accel', 'u'] = pitch_ang_vel
-        J['dz_accel', 'roll_ang_vel'] = -v
-        J['dz_accel', 'pitch_ang_vel'] = u
+        J['dz_accel', 'v'] = -p
+        J['dz_accel', 'u'] = q
+        J['dz_accel', 'roll_angle_vel'] = -v
+        J['dz_accel', 'pitch_angle_vel'] = u
         J['dz_accel', 'g'] = np.cos(roll) * np.cos(pitch)
         J['dz_accel', 'roll'] = -np.sin(roll) * np.cos(pitch) * g
         J['dz_accel', 'pitch'] = -np.cos(roll) * np.sin(pitch) * g
 
-        J['roll_accel', 'J_xz'] = (Den * (
-            (J_xx - J_yy + J_zz) * roll_ang_vel * pitch_ang_vel - 2 * J_xz * pitch_ang_vel * yaw_ang_vel + lz) - (
-                J_xz * (J_xx - J_yy + J_zz) * roll_ang_vel * pitch_ang_vel - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * pitch_ang_vel * yaw_ang_vel + 
-                   J_zz * lx + 
-                   J_xz * lz) * -2 * J_xz) / Den**2
+        J['roll_accel', 'J_xz'] = (
+            (
+                (
+                    -1 * (Ixz)**(2) * Iyy + (
+                        2 * Ixy * Ixz * Iyz + (
+                            -1 * Ixx * (Iyz)**(2) + (
+                                -1 * (Ixy)**(2) * Izz + Ixx * Iyy * Izz)))))**(-1) * (
+                                    -1 * (-1 * (Iyz)**(2) + Iyy * Izz) * p * q + (
+                                        (
+                                            -1 * Ixz * Iyy + Ixy * Iyz) * q * r + (
+                                                -1 * Iyy * (Mz + (
+                                                    Ixx * p * q + (
+                                                        -1 * Iyy * p * q + (Ixy * (
+                                                            -1 * (p)**(2) + (q)**(2)) + (
+                                                                -1 * Iyz * p * r + Ixz * q * r))))) + ((
+                                                                    Ixz * Iyz + -1 * Ixy * Izz) * (
+                                                                        (p)**(2) + -1 * (r)**(2)) + Iyz * (
+                                                                            My + (Iyz * p * q + (
+                                                                                -1 * Ixx * p * r + (
+                                                                                    Izz * p * r + (
+                                                                                        -1 * Ixy * q * r + Ixz * (
+                                                                                            (p)**(2) + -1 * (r)**(2))))))))))) + -1 * (
+                                                                                                -2 * Ixz * Iyy + 2 * Ixy * Iyz) * (
+                                                                                                    (-1 * (Ixz)**(2) * Iyy + (
+                                                                                                        2 * Ixy * Ixz * Iyz + (
+                                                                                                            -1 * Ixx * (Iyz)**(2) + (
+                                                                                                                -1 * (Ixy)**(2) * Izz + Ixx * Iyy * Izz)))))**(-2) * ((
+                                                                                                                    -1 * Ixz * Iyy + Ixy * Iyz) * (Mz + (
+                                                                                                                        Ixx * p * q + (
+                                                                                                                            -1 * Iyy * p * q + (Ixy * (
+                                                                                                                                -1 * (p)**(2) + (q)**(2)) + (
+                                                                                                                                    -1 * Iyz * p * r + Ixz * q * r))))) + ((
+                                                                                                                                        -1 * (Iyz)**(2) + Iyy * Izz) * (
+                                                                                                                                            Mx + (-1 * Ixz * p * q + (
+                                                                                                                                                -1 * Iyz * (q)**(2) + (
+                                                                                                                                                    Ixy * p * r + (Iyy * q * r + (
+                                                                                                                                                        -1 * Izz * q * r + Iyz * (r)**(2))))))) + (
+                                                                                                                                                            Ixz * Iyz + -1 * Ixy * Izz) * (My + (
+                                                                                                                                                                Iyz * p * q + (-1 * Ixx * p * r + (
+                                                                                                                                                                    Izz * p * r + (-1 * Ixy * q * r + Ixz * (
+                                                                                                                                                                        (p)**(2) + -1 * (r)**( 2 ))))))))))
         J['roll_accel', 'J_xx'] = (Den * (
-            J_xz * roll_ang_vel * pitch_ang_vel
-        ) - (J_xz * (J_xx - J_yy + J_zz) * roll_ang_vel * pitch_ang_vel - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * pitch_ang_vel * yaw_ang_vel + 
+            J_xz * p * q
+        ) - (J_xz * (J_xx - J_yy + J_zz) * p * q - 
+                   (J_zz * (J_zz - J_yy) + J_xz**2) * q * r + 
                    J_zz * lx + 
                    J_xz * lz) * J_zz) / Den**2
-        J['roll_accel', 'J_yy'] = (-J_xz * roll_ang_vel * pitch_ang_vel + J_zz * pitch_ang_vel * yaw_ang_vel) / Den
+        J['roll_accel', 'J_yy'] = (-J_xz * p * q + J_zz * q * r) / Den
         J['roll_accel', 'J_zz'] = (Den * (
-            J_xz * roll_ang_vel * pitch_ang_vel - 2 * J_zz * pitch_ang_vel * yaw_ang_vel + J_yy * pitch_ang_vel * yaw_ang_vel + lx
-        ) - (J_xz * (J_xx - J_yy + J_zz) * roll_ang_vel * pitch_ang_vel - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * pitch_ang_vel * yaw_ang_vel + 
+            J_xz * p * q - 2 * J_zz * q * r + J_yy * q * r + lx
+        ) - (J_xz * (J_xx - J_yy + J_zz) * p * q - 
+                   (J_zz * (J_zz - J_yy) + J_xz**2) * q * r + 
                    J_zz * lx + 
                    J_xz * lz) * J_xx) / Den**2
-        J['roll_accel', 'roll_ang_vel'] = (J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel) / Den
-        J['roll_accel', 'pitch_ang_vel'] = (J_xz * (J_xx - J_yy + J_zz) * roll_ang_vel - (J_zz * (J_zz - J_yy) + J_xz**2) * yaw_ang_vel) / Den
-        J['roll_accel', 'yaw_ang_vel'] = -((J_zz * (J_zz - J_yy) + J_xz**2) * pitch_ang_vel) / Den
+        J['roll_accel', 'roll_angle_vel'] = (J_xz * (J_xx - J_yy + J_zz) * q) / Den
+        J['roll_accel', 'pitch_angle_vel'] = (J_xz * (J_xx - J_yy + J_zz) * p - (J_zz * (J_zz - J_yy) + J_xz**2) * r) / Den
+        J['roll_accel', 'yaw_ang_vel'] = -((J_zz * (J_zz - J_yy) + J_xz**2) * q) / Den
         J['roll_accel', 'lx'] = J_zz / Den
         J['roll_accel', 'lz'] = J_xz / Den
 
-        J['pitch_accel', 'J_xz'] = -(roll_ang_vel**2 - yaw_ang_vel**2) / J_yy
-        J['pitch_accel', 'J_xx'] = -(roll_ang_vel * yaw_ang_vel) / J_yy
-        J['pitch_accel', 'J_yy'] = -((J_zz - J_xx) * roll_ang_vel * yaw_ang_vel - 
-                    J_xz * (roll_ang_vel**2 - yaw_ang_vel**2) + ly) / J_yy**2
-        J['pitch_accel', 'J_zz'] = roll_ang_vel * yaw_ang_vel / J_yy
-        J['pitch_accel', 'roll_ang_vel'] = ((J_zz - J_xx) * yaw_ang_vel - 2 * J_xz * roll_ang_vel) / J_yy
-        J['pitch_accel', 'yaw_ang_vel'] = ((J_zz - J_xx) * roll_ang_vel + 2 * J_xz * yaw_ang_vel) / J_yy
+        J['pitch_accel', 'J_xz'] = -(p**2 - r**2) / J_yy
+        J['pitch_accel', 'J_xx'] = -(p * r) / J_yy
+        J['pitch_accel', 'J_yy'] = -((J_zz - J_xx) * p * r - 
+                    J_xz * (p**2 - r**2) + ly) / J_yy**2
+        J['pitch_accel', 'J_zz'] = p * r / J_yy
+        J['pitch_accel', 'roll_angle_vel'] = ((J_zz - J_xx) * r - 2 * J_xz * p) / J_yy
+        J['pitch_accel', 'yaw_ang_vel'] = ((J_zz - J_xx) * p + 2 * J_xz * r) / J_yy
         J['pitch_accel', 'ly'] = 1 / J_yy
 
         J['yaw_accel', 'J_xz'] = (Den * (
-            2 * J_xz * roll_ang_vel * pitch_ang_vel + (J_xx - J_yy + J_zz) * pitch_ang_vel * yaw_ang_vel + lx + lz
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * roll_ang_vel * pitch_ang_vel + 
-                  J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel * yaw_ang_vel + 
+            2 * J_xz * p * q + (J_xx - J_yy + J_zz) * q * r + lx + lz
+        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
+                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
                   J_xz * lx + 
                   J_xz * lz) * -2 * J_xz) / Den**2
         J['yaw_accel', 'J_xx'] = (Den * (
-            2 * J_xx * roll_ang_vel * pitch_ang_vel - J_yy * roll_ang_vel * pitch_ang_vel + J_xz * pitch_ang_vel * yaw_ang_vel
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * roll_ang_vel * pitch_ang_vel + 
-                  J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel * yaw_ang_vel + 
+            2 * J_xx * p * q - J_yy * p * q + J_xz * q * r
+        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
+                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
                   J_xz * lx + 
                   J_xz * lz) * J_zz) / Den**2
-        J['yaw_accel', 'J_yy'] = (-J_xx * roll_ang_vel * pitch_ang_vel - J_xz * pitch_ang_vel * yaw_ang_vel) / Den
+        J['yaw_accel', 'J_yy'] = (-J_xx * p * q - J_xz * q * r) / Den
         J['yaw_accel', 'J_zz'] = (Den * (
-            J_xz * pitch_ang_vel * yaw_ang_vel
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * roll_ang_vel * pitch_ang_vel + 
-                  J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel * yaw_ang_vel + 
+            J_xz * q * r
+        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
+                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
                   J_xz * lx + 
                   J_xz * lz) * J_xx) / Den**2
-        J['yaw_accel', 'roll_ang_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * pitch_ang_vel) / Den
-        J['yaw_accel', 'pitch_ang_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * roll_ang_vel + J_xz * (J_xx - J_yy + J_zz) * yaw_ang_vel) / Den
-        J['yaw_accel', 'yaw_ang_vel'] = (J_xz * (J_xx - J_yy + J_zz) * pitch_ang_vel) / Den
+        J['yaw_accel', 'roll_angle_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * q) / Den
+        J['yaw_accel', 'pitch_angle_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * p + J_xz * (J_xx - J_yy + J_zz) * r) / Den
+        J['yaw_accel', 'yaw_ang_vel'] = (J_xz * (J_xx - J_yy + J_zz) * q) / Den
         J['yaw_accel', 'lx'] = J_xz / Den
         J['yaw_accel', 'lz'] = J_xz / Den
 
-        J['roll_angle_rate_eq', 'roll_ang_vel'] = 1 
-        J['roll_angle_rate_eq', 'pitch_ang_vel'] = np.sin(roll) * np.tan(pitch)
+        J['roll_angle_rate_eq', 'roll_angle_vel'] = 1 
+        J['roll_angle_rate_eq', 'pitch_angle_vel'] = np.sin(roll) * np.tan(pitch)
         J['roll_angle_rate_eq', 'yaw_ang_vel'] = np.cos(roll) * np.tan(pitch)
-        J['roll_angle_rate_eq', 'roll'] = np.cos(roll) * np.tan(pitch) * pitch_ang_vel - np.sin(roll) * np.tan(pitch) * yaw_ang_vel
-        J['roll_angle_rate_eq', 'pitch'] = np.sin(roll) * (1 / np.cos(pitch)**2) * pitch_ang_vel + np.cos(roll) * (1 / np.cos(pitch)**2) * yaw_ang_vel
+        J['roll_angle_rate_eq', 'roll'] = np.cos(roll) * np.tan(pitch) * q - np.sin(roll) * np.tan(pitch) * r
+        J['roll_angle_rate_eq', 'pitch'] = np.sin(roll) * (1 / np.cos(pitch)**2) * q + np.cos(roll) * (1 / np.cos(pitch)**2) * r
         
-        J['pitch_angle_rate_eq', 'pitch_ang_vel'] = np.cos(roll)
+        J['pitch_angle_rate_eq', 'pitch_angle_vel'] = np.cos(roll)
         J['pitch_angle_rate_eq', 'yaw_ang_vel'] = -np.sin(roll)
-        J['pitch_angle_rate_eq', 'roll'] = -np.sin(roll) * pitch_ang_vel - np.cos(roll) * yaw_ang_vel
+        J['pitch_angle_rate_eq', 'roll'] = -np.sin(roll) * q - np.cos(roll) * r
 
-        J['yaw_angle_rate_eq', 'pitch_ang_vel'] = np.sin(roll) / np.cos(pitch)
+        J['yaw_angle_rate_eq', 'pitch_angle_vel'] = np.sin(roll) / np.cos(pitch)
         J['yaw_angle_rate_eq', 'yaw_ang_vel'] = np.cos(roll) / np.cos(pitch)
-        J['yaw_angle_rate_eq', 'roll'] = np.cos(roll) / np.cos(pitch) * pitch_ang_vel - np.sin(roll) / np.cos(pitch) * yaw_ang_vel
-        J['yaw_angle_rate_eq', 'pitch'] = np.sin(roll) * (np.tan(pitch) / np.cos(pitch)) * pitch_ang_vel + np.cos(roll) * (np.tan(pitch) / np.cos(pitch)) * yaw_ang_vel
+        J['yaw_angle_rate_eq', 'roll'] = np.cos(roll) / np.cos(pitch) * q - np.sin(roll) / np.cos(pitch) * r
+        J['yaw_angle_rate_eq', 'pitch'] = np.sin(roll) * (np.tan(pitch) / np.cos(pitch)) * q + np.cos(roll) * (np.tan(pitch) / np.cos(pitch)) * r
 
         # note: d/dx tan(x) = sec^2(x) = 1 / cos^2(x)
         # note: d/dx 1 / cos(x) = d/dx sec(x) = sec(x)tan(x) = tan(x) / cos(x)
@@ -685,15 +793,15 @@ if __name__ == "__main__":
 
     p = om.Problem()
     p.model = om.Group()
-    des_vars = p.model.add_subsystem('des_vars', om.IndepVarComp(), promotes=['*'])
+    des_vars = p.model.add_subsystem('des_vars', om.J_ndepVarComp(), promotes=['*'])
 
     des_vars.add_output('mass', 3.0, units='kg')
     des_vars.add_output('u', 0.1, units='m/s')
     des_vars.add_output('v', 0.7, units='m/s')
     des_vars.add_output('w', 0.12, units='m/s')
-    des_vars.add_output('roll_ang_vel', 0.1, units='rad/s')
-    des_vars.add_output('pitch_ang_vel', 0.9, units='rad/s')
-    des_vars.add_output('yaw_ang_vel', 0.12, units='rad/s')
+    des_vars.add_output('p', 0.1, units='rad/s')
+    des_vars.add_output('q', 0.9, units='rad/s')
+    des_vars.add_output('r', 0.12, units='rad/s')
     des_vars.add_output('roll', 0.9, units='rad')
     des_vars.add_output('pitch', 0.19, units='rad')
     des_vars.add_output('yaw', 0.70, units='rad')
@@ -709,7 +817,7 @@ if __name__ == "__main__":
     des_vars.add_output('J_yy', 51.0, units='kg*m**2')
     des_vars.add_output('J_zz', 52.0, units='kg*m**2')
 
-    p.model.add_subsystem('SixDOF_EOM', SixDOF_EOM(num_nodes=1), promotes=['*'])
+    p.model.add_subsystem('SixDOF_EOl', SixDOF_EOl(num_nodes=1), promotes=['*'])
 
     p.setup(check=False, force_alloc_complex=True)
 

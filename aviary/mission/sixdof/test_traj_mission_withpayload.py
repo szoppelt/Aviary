@@ -369,9 +369,9 @@ descent2 = dm.Phase(ode_class=vtolODE,
 descent2 = traj.add_phase('descent2', descent2)
 descent2.set_time_options(fix_initial=False, initial_bounds=(50, 200), duration_bounds=(10, 200), duration_ref=30, units='s')
 descent2.add_parameter('mass', val=2.2, static_target=True, targets=['mass'], units='kg')
-descent2.add_parameter('J_xx', val=0.012672, static_target=True, targets=['J_xx'], units='kg*m**2')
-descent2.add_parameter('J_yy', val=0.012672, static_target=True, targets=['J_yy'], units='kg*m**2')
-descent2.add_parameter('J_zz', val=0.012672, static_target=True, targets=['J_zz'], units='kg*m**2')
+descent2.add_parameter('J_xx', val=0.22, static_target=True, targets=['J_xx'], units='kg*m**2')
+descent2.add_parameter('J_yy', val=0.22, static_target=True, targets=['J_yy'], units='kg*m**2')
+descent2.add_parameter('J_zz', val=0.22, static_target=True, targets=['J_zz'], units='kg*m**2')
 descent2.add_parameter('J_xz', val=0.0, static_target=True, targets=['J_xz'], units='kg*m**2')
 descent2.add_state('u', fix_initial=False, fix_final=True, rate_source='dx_accel', targets=['u'], units='m/s', ref=1, defect_ref=0.1)
 descent2.add_state('v', fix_initial=False, fix_final=True, rate_source='dy_accel', targets=['v'], units='m/s', ref=1, defect_ref=0.1)
@@ -866,3 +866,5 @@ fig2.legend(handles=legend_elements, loc='upper center',
 
 plt.tight_layout(rect=[0, 0, 1, 0.95])  # Leave room for legend at top
 plt.show()
+
+
