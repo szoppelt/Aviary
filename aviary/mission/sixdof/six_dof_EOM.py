@@ -1,10 +1,10 @@
 import numpy as np
 import openmdao.api as om
 
-class SixDOF_EOl(om.ExplicitComponent):
+class SixDOF_EOM(om.ExplicitComponent):
     """
-    Six DOF EOl component, with particular emphasis for rotorcraft. 
-    ASSUlPTJ_ONS:
+    Six DOF EOM component, with particular emphasis for rotorcraft. 
+    ASSUMPTIONS:
         - Assume Flat Earth model (particularly for rotorcraft)
         - Earth is the internal f.o.r.
         - Gravity is constant and normal to the tangent plane (Earth's surface) -- g = (0 0 G)^T
@@ -352,6 +352,7 @@ class SixDOF_EOl(om.ExplicitComponent):
         self.declare_partials(of='roll_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='lx', rows=ar, cols=ar)
+        self.declare_partials(of='roll_accel', wrt='ly', rows=ar, cols=ar)
         self.declare_partials(of='roll_accel', wrt='lz', rows=ar, cols=ar)
 
         self.declare_partials(of='pitch_accel', wrt='J_xz')
@@ -361,8 +362,11 @@ class SixDOF_EOl(om.ExplicitComponent):
         self.declare_partials(of='pitch_accel', wrt='J_yz')
         self.declare_partials(of='pitch_accel', wrt='J_xy')
         self.declare_partials(of='pitch_accel', wrt='roll_angle_vel', rows=ar, cols=ar)
+        self.declare_partials(of='pitch_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='pitch_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
+        self.declare_partials(of='pitch_accel', wrt='lx', rows=ar, cols=ar)
         self.declare_partials(of='pitch_accel', wrt='ly', rows=ar, cols=ar)
+        self.declare_partials(of='pitch_accel', wrt='lz', rows=ar, cols=ar)
 
         self.declare_partials(of='yaw_accel', wrt='J_xz')
         self.declare_partials(of='yaw_accel', wrt='J_xx')
@@ -374,6 +378,7 @@ class SixDOF_EOl(om.ExplicitComponent):
         self.declare_partials(of='yaw_accel', wrt='pitch_angle_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='yaw_ang_vel', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='lx', rows=ar, cols=ar)
+        self.declare_partials(of='yaw_accel', wrt='ly', rows=ar, cols=ar)
         self.declare_partials(of='yaw_accel', wrt='lz', rows=ar, cols=ar)
 
         self.declare_partials(of='roll_angle_rate_eq', wrt='roll_angle_vel', rows=ar, cols=ar)
@@ -643,96 +648,84 @@ class SixDOF_EOl(om.ExplicitComponent):
         J['roll_accel', 'J_xz'] = (
             (
                 (
-                    -1 * (Ixz)**(2) * Iyy + (
-                        2 * Ixy * Ixz * Iyz + (
-                            -1 * Ixx * (Iyz)**(2) + (
-                                -1 * (Ixy)**(2) * Izz + Ixx * Iyy * Izz)))))**(-1) * (
-                                    -1 * (-1 * (Iyz)**(2) + Iyy * Izz) * p * q + (
+                    -1 * (J_xz)**(2) * J_yy + (
+                        2 * J_xy * J_xz * J_yz + (
+                            -1 * J_xx * (J_yz)**(2) + (
+                                -1 * (J_xy)**(2) * J_zz + J_xx * J_yy * J_zz)))))**(-1) * (
+                                    -1 * (-1 * (J_yz)**(2) + J_yy * J_zz) * p * q + (
                                         (
-                                            -1 * Ixz * Iyy + Ixy * Iyz) * q * r + (
-                                                -1 * Iyy * (Mz + (
-                                                    Ixx * p * q + (
-                                                        -1 * Iyy * p * q + (Ixy * (
+                                            -1 * J_xz * J_yy + J_xy * J_yz) * q * r + (
+                                                -1 * J_yy * (lz + (
+                                                    J_xx * p * q + (
+                                                        -1 * J_yy * p * q + (J_xy * (
                                                             -1 * (p)**(2) + (q)**(2)) + (
-                                                                -1 * Iyz * p * r + Ixz * q * r))))) + ((
-                                                                    Ixz * Iyz + -1 * Ixy * Izz) * (
-                                                                        (p)**(2) + -1 * (r)**(2)) + Iyz * (
-                                                                            My + (Iyz * p * q + (
-                                                                                -1 * Ixx * p * r + (
-                                                                                    Izz * p * r + (
-                                                                                        -1 * Ixy * q * r + Ixz * (
+                                                                -1 * J_yz * p * r + J_xz * q * r))))) + ((
+                                                                    J_xz * J_yz + -1 * J_xy * J_zz) * (
+                                                                        (p)**(2) + -1 * (r)**(2)) + J_yz * (
+                                                                            ly + (J_yz * p * q + (
+                                                                                -1 * J_xx * p * r + (
+                                                                                    J_zz * p * r + (
+                                                                                        -1 * J_xy * q * r + J_xz * (
                                                                                             (p)**(2) + -1 * (r)**(2))))))))))) + -1 * (
-                                                                                                -2 * Ixz * Iyy + 2 * Ixy * Iyz) * (
-                                                                                                    (-1 * (Ixz)**(2) * Iyy + (
-                                                                                                        2 * Ixy * Ixz * Iyz + (
-                                                                                                            -1 * Ixx * (Iyz)**(2) + (
-                                                                                                                -1 * (Ixy)**(2) * Izz + Ixx * Iyy * Izz)))))**(-2) * ((
-                                                                                                                    -1 * Ixz * Iyy + Ixy * Iyz) * (Mz + (
-                                                                                                                        Ixx * p * q + (
-                                                                                                                            -1 * Iyy * p * q + (Ixy * (
+                                                                                                -2 * J_xz * J_yy + 2 * J_xy * J_yz) * (
+                                                                                                    (-1 * (J_xz)**(2) * J_yy + (
+                                                                                                        2 * J_xy * J_xz * J_yz + (
+                                                                                                            -1 * J_xx * (J_yz)**(2) + (
+                                                                                                                -1 * (J_xy)**(2) * J_zz + J_xx * J_yy * J_zz)))))**(-2) * ((
+                                                                                                                    -1 * J_xz * J_yy + J_xy * J_yz) * (lz + (
+                                                                                                                        J_xx * p * q + (
+                                                                                                                            -1 * J_yy * p * q + (J_xy * (
                                                                                                                                 -1 * (p)**(2) + (q)**(2)) + (
-                                                                                                                                    -1 * Iyz * p * r + Ixz * q * r))))) + ((
-                                                                                                                                        -1 * (Iyz)**(2) + Iyy * Izz) * (
-                                                                                                                                            Mx + (-1 * Ixz * p * q + (
-                                                                                                                                                -1 * Iyz * (q)**(2) + (
-                                                                                                                                                    Ixy * p * r + (Iyy * q * r + (
-                                                                                                                                                        -1 * Izz * q * r + Iyz * (r)**(2))))))) + (
-                                                                                                                                                            Ixz * Iyz + -1 * Ixy * Izz) * (My + (
-                                                                                                                                                                Iyz * p * q + (-1 * Ixx * p * r + (
-                                                                                                                                                                    Izz * p * r + (-1 * Ixy * q * r + Ixz * (
+                                                                                                                                    -1 * J_yz * p * r + J_xz * q * r))))) + ((
+                                                                                                                                        -1 * (J_yz)**(2) + J_yy * J_zz) * (
+                                                                                                                                            lx + (-1 * J_xz * p * q + (
+                                                                                                                                                -1 * J_yz * (q)**(2) + (
+                                                                                                                                                    J_xy * p * r + (J_yy * q * r + (
+                                                                                                                                                        -1 * J_zz * q * r + J_yz * (r)**(2))))))) + (
+                                                                                                                                                            J_xz * J_yz + -1 * J_xy * J_zz) * (ly + (
+                                                                                                                                                                J_yz * p * q + (-1 * J_xx * p * r + (
+                                                                                                                                                                    J_zz * p * r + (-1 * J_xy * q * r + J_xz * (
                                                                                                                                                                         (p)**(2) + -1 * (r)**( 2 ))))))))))
-        J['roll_accel', 'J_xx'] = (Den * (
-            J_xz * p * q
-        ) - (J_xz * (J_xx - J_yy + J_zz) * p * q - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * q * r + 
-                   J_zz * lx + 
-                   J_xz * lz) * J_zz) / Den**2
-        J['roll_accel', 'J_yy'] = (-J_xz * p * q + J_zz * q * r) / Den
-        J['roll_accel', 'J_zz'] = (Den * (
-            J_xz * p * q - 2 * J_zz * q * r + J_yy * q * r + lx
-        ) - (J_xz * (J_xx - J_yy + J_zz) * p * q - 
-                   (J_zz * (J_zz - J_yy) + J_xz**2) * q * r + 
-                   J_zz * lx + 
-                   J_xz * lz) * J_xx) / Den**2
-        J['roll_accel', 'roll_angle_vel'] = (J_xz * (J_xx - J_yy + J_zz) * q) / Den
-        J['roll_accel', 'pitch_angle_vel'] = (J_xz * (J_xx - J_yy + J_zz) * p - (J_zz * (J_zz - J_yy) + J_xz**2) * r) / Den
-        J['roll_accel', 'yaw_ang_vel'] = -((J_zz * (J_zz - J_yy) + J_xz**2) * q) / Den
-        J['roll_accel', 'lx'] = J_zz / Den
-        J['roll_accel', 'lz'] = J_xz / Den
+        J['roll_accel', 'J_xx'] = (((
+            -1 * (J_xz)**(2) * J_yy + (
+                2 * J_xy * J_xz * J_yz + (
+                    -1 * J_xx * (J_yz)**(2) + (-1 * (J_xy)**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * p * q + -1 * ( J_xz * J_yz + -1 * J_xy * J_zz ) * p * r ) + -1 * ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['roll_accel', 'J_yy'] = ((J_xz**2 * J_yy - 2 * J_xy * J_xz * J_yz + J_xy**2 * J_zz + J_xx * (J_yz**2 - J_yy * J_zz)) * (J_xz**2 * q * r + J_zz**2 * q * r + J_yz * q * (J_xy * p + J_yz * r) + J_xz * (lz - J_xy * p**2 + J_xx * p * q - 2 * J_yy * p * q + J_xy * q**2 - J_yz * p * r) - J_zz * (lx - J_xz * p * q - J_yz * q**2 + J_xy * p * r + 2 * J_yy * q * r + J_yz * r**2)) - (-J_xz**2 + J_xx * J_zz) * ((-J_xz * J_yy + J_xy * J_yz) * ( lz + J_xx * p * q - J_yy * p * q + J_xy * (-p**2 + q**2) - J_yz * p * r + J_xz * q * r) + (-J_yz**2 + J_yy * J_zz) * (lx - J_xz * p * q - J_yz * q**2 + J_xy * p * r + J_yy * q * r - J_zz * q * r + J_yz * r**2) + (J_xz * J_yz - J_xy * J_zz) * (ly + J_yz * p * q - J_xx * p * r + J_zz * p * r - J_xy * q * r + J_xz * (p**2 - r**2))))/(J_xz**2 * J_yy - 2 * J_xy * J_xz * J_yz + J_xy**2 * J_zz + J_xx * (J_yz**2 - J_yy * J_zz))**2
+        J['roll_accel', 'J_zz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * p * r + ( -1 * ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * q * r + ( J_yy * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * J_xy * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) + -1 * ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['roll_accel', 'J_xy'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * p * r + ( -1 * ( J_xz * J_yz + -1 * J_xy * J_zz ) * q * r + ( J_yz * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + -1 * J_zz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xz * J_yz + -2 * J_xy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['roll_accel', 'J_yz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * p * q + ( -1 * ( -1 * J_xz * J_yy + J_xy * J_yz ) * p * r + ( J_xy * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( -1 * ( q )**( 2 ) + ( r )**( 2 ) ) + ( -2 * J_yz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + J_xz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xy * J_xz + -2 * J_xx * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) 
+        J['roll_accel', 'roll_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( -1 * J_xz * q + J_xy * r ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -2 * J_xy * p + ( J_xx * q + ( -1 * J_yy * q + -1 * J_yz * r ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( 2 * J_xz * p + ( J_yz * q + ( -1 * J_xx * r + J_zz * r ) ) ) ) )
+        J['roll_accel', 'pitch_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( J_yz * p + -1 * J_xy * r ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( J_xx * p + ( -1 * J_yy * p + ( 2 * J_xy * q + J_xz * r ) ) ) + ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( -1 * J_xz * p + ( -2 * J_yz * q + ( J_yy * r + -1 * J_zz * r ) ) ) ) )
+        J['roll_accel', 'yaw_ang_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -1 * J_yz * p + J_xz * q ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( -1 * J_xx * p + ( J_zz * p + ( -1 * J_xy * q + -2 * J_xz * r ) ) ) + ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( J_xy * p + ( J_yy * q + ( -1 * J_zz * q + 2 * J_yz * r ) ) ) ) )
+        J['roll_accel', 'lx'] = ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['roll_accel', 'ly'] = ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['roll_accel', 'lz'] = ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
 
-        J['pitch_accel', 'J_xz'] = -(p**2 - r**2) / J_yy
-        J['pitch_accel', 'J_xx'] = -(p * r) / J_yy
-        J['pitch_accel', 'J_yy'] = -((J_zz - J_xx) * p * r - 
-                    J_xz * (p**2 - r**2) + ly) / J_yy**2
-        J['pitch_accel', 'J_zz'] = p * r / J_yy
-        J['pitch_accel', 'roll_angle_vel'] = ((J_zz - J_xx) * r - 2 * J_xz * p) / J_yy
-        J['pitch_accel', 'yaw_ang_vel'] = ((J_zz - J_xx) * p + 2 * J_xz * r) / J_yy
-        J['pitch_accel', 'ly'] = 1 / J_yy
+        J['pitch_accel', 'J_xz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( J_xz * J_yz + -1 * J_xy * J_zz ) * p * q + ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * q * r + ( J_xy * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) + ( J_yz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -2 * J_xz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) ) + -1 * ( -2 * J_xz * J_yy + 2 * J_xy * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'J_xx'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * q + ( ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * p * r + ( -1 * J_yz * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + J_zz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) + -1 * ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'J_yy'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * q + ( J_xz * J_yz + -1 * J_xy * J_zz ) * q * r ) + -1 * ( -1 * ( J_xz )**( 2 ) + J_xx * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'J_zz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * p * r + ( -1 * ( J_xz * J_yz + -1 * J_xy * J_zz ) * q * r + ( -1 * J_xy * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + J_xx * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) + -1 * ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'J_xy'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * p * r + ( ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * q * r + ( J_xz * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + -1 * J_zz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xz * J_yz + -2 * J_xy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'J_yz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * p * q + ( -1 * ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * r + ( -1 * J_xx * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( -1 * ( q )**( 2 ) + ( r )**( 2 ) ) + J_xz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xy * J_xz + -2 * J_xx * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['pitch_accel', 'roll_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( -1 * J_xz * q + J_xy * r ) + ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( -2 * J_xy * p + ( J_xx * q + ( -1 * J_yy * q + -1 * J_yz * r ) ) ) + -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( 2 * J_xz * p + ( J_yz * q + ( -1 * J_xx * r + J_zz * r ) ) ) ) )
+        J['pitch_accel', 'pitch_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( J_yz * p + -1 * J_xy * r ) + ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( J_xx * p + ( -1 * J_yy * p + ( 2 * J_xy * q + J_xz * r ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( -1 * J_xz * p + ( -2 * J_yz * q + ( J_yy * r + -1 * J_zz * r ) ) ) ) )
+        J['pitch_accel', 'yaw_ang_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( -1 * J_yz * p + J_xz * q ) + ( -1 * ( ( J_xz )**( 2 ) + -1 * J_xx * J_zz ) * ( -1 * J_xx * p + ( J_zz * p + ( -1 * J_xy * q + -2 * J_xz * r ) ) ) + ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( J_xy * p + ( J_yy * q + ( -1 * J_zz * q + 2 * J_yz * r ) ) ) ) )
+        J['pitch_accel', 'lx'] = ( J_xz * J_yz + -1 * J_xy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['pitch_accel', 'ly'] = ( -1 * ( J_xz )**( 2 ) + J_xx * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['pitch_accel', 'lz'] = ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
 
-        J['yaw_accel', 'J_xz'] = (Den * (
-            2 * J_xz * p * q + (J_xx - J_yy + J_zz) * q * r + lx + lz
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
-                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
-                  J_xz * lx + 
-                  J_xz * lz) * -2 * J_xz) / Den**2
-        J['yaw_accel', 'J_xx'] = (Den * (
-            2 * J_xx * p * q - J_yy * p * q + J_xz * q * r
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
-                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
-                  J_xz * lx + 
-                  J_xz * lz) * J_zz) / Den**2
-        J['yaw_accel', 'J_yy'] = (-J_xx * p * q - J_xz * q * r) / Den
-        J['yaw_accel', 'J_zz'] = (Den * (
-            J_xz * q * r
-        ) - ((J_xx * (J_xx - J_yy) + J_xz**2) * p * q + 
-                  J_xz * (J_xx - J_yy + J_zz) * q * r + 
-                  J_xz * lx + 
-                  J_xz * lz) * J_xx) / Den**2
-        J['yaw_accel', 'roll_angle_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * q) / Den
-        J['yaw_accel', 'pitch_angle_vel'] = ((J_xx * (J_xx - J_yy) + J_xz**2) * p + J_xz * (J_xx - J_yy + J_zz) * r) / Den
-        J['yaw_accel', 'yaw_ang_vel'] = (J_xz * (J_xx - J_yy + J_zz) * q) / Den
-        J['yaw_accel', 'lx'] = J_xz / Den
-        J['yaw_accel', 'lz'] = J_xz / Den
+        J['yaw_accel', 'J_xz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( -1 * J_xz * J_yy + J_xy * J_yz ) * p * q + ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * q * r + ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) + ( -1 * J_yy * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + J_xy * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) + -1 * ( -2 * J_xz * J_yy + 2 * J_xy * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'J_xx'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * p * q + ( -1 * ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * r + ( J_yy * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + -1 * J_yz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) + -1 * ( -1 * ( J_yz )**( 2 ) + J_yy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'J_yy'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( -1 * ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * p * q + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * q * r + ( J_xx * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + -1 * J_xz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) + -1 * ( -1 * ( J_xz )**( 2 ) + J_xx * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'J_zz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * r + -1 * ( -1 * J_xz * J_yy + J_xy * J_yz ) * q * r ) + -1 * ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'J_xy'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * p * r + ( -1 * ( J_xy * J_xz + -1 * J_xx * J_yz ) * q * r + ( -2 * J_xy * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( J_yz * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + J_xz * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xz * J_yz + -2 * J_xy * J_zz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'J_yz'] = ( ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * p * q + ( -1 * ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * p * r + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -1 * ( q )**( 2 ) + ( r )**( 2 ) ) + ( J_xy * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + -1 * J_xx * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) ) ) + -1 * ( 2 * J_xy * J_xz + -2 * J_xx * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -2 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( lz + ( J_xx * p * q + ( -1 * J_yy * p * q + ( J_xy * ( -1 * ( p )**( 2 ) + ( q )**( 2 ) ) + ( -1 * J_yz * p * r + J_xz * q * r ) ) ) ) ) + ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( lx + ( -1 * J_xz * p * q + ( -1 * J_yz * ( q )**( 2 ) + ( J_xy * p * r + ( J_yy * q * r + ( -1 * J_zz * q * r + J_yz * ( r )**( 2 ) ) ) ) ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ly + ( J_yz * p * q + ( -1 * J_xx * p * r + ( J_zz * p * r + ( -1 * J_xy * q * r + J_xz * ( ( p )**( 2 ) + -1 * ( r )**( 2 ) ) ) ) ) ) ) ) ) )
+        J['yaw_accel', 'roll_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -1 * J_xz * q + J_xy * r ) + ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( -2 * J_xy * p + ( J_xx * q + ( -1 * J_yy * q + -1 * J_yz * r ) ) ) + ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( 2 * J_xz * p + ( J_yz * q + ( -1 * J_xx * r + J_zz * r ) ) ) ) )
+        J['yaw_accel', 'pitch_angle_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( J_yz * p + -1 * J_xy * r ) + ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( J_xx * p + ( -1 * J_yy * p + ( 2 * J_xy * q + J_xz * r ) ) ) + ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( -1 * J_xz * p + ( -2 * J_yz * q + ( J_yy * r + -1 * J_zz * r ) ) ) ) )
+        J['yaw_accel', 'yaw_ang_vel'] = ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 ) * ( ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( -1 * J_yz * p + J_xz * q ) + ( ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( -1 * J_xx * p + ( J_zz * p + ( -1 * J_xy * q + -2 * J_xz * r ) ) ) + ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( J_xy * p + ( J_yy * q + ( -1 * J_zz * q + 2 * J_yz * r ) ) ) ) )
+        J['yaw_accel', 'lx'] = ( -1 * J_xz * J_yy + J_xy * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['yaw_accel', 'ly'] = ( J_xy * J_xz + -1 * J_xx * J_yz ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
+        J['yaw_accel', 'lz'] = ( -1 * ( J_xy )**( 2 ) + J_xx * J_yy ) * ( ( -1 * ( J_xz )**( 2 ) * J_yy + ( 2 * J_xy * J_xz * J_yz + ( -1 * J_xx * ( J_yz )**( 2 ) + ( -1 * ( J_xy )**( 2 ) * J_zz + J_xx * J_yy * J_zz ) ) ) ) )**( -1 )
 
         J['roll_angle_rate_eq', 'roll_angle_vel'] = 1 
         J['roll_angle_rate_eq', 'pitch_angle_vel'] = np.sin(roll) * np.tan(pitch)
@@ -793,7 +786,7 @@ if __name__ == "__main__":
 
     p = om.Problem()
     p.model = om.Group()
-    des_vars = p.model.add_subsystem('des_vars', om.J_ndepVarComp(), promotes=['*'])
+    des_vars = p.model.add_subsystem('des_vars', om.IndepVarComp(), promotes=['*'])
 
     des_vars.add_output('mass', 3.0, units='kg')
     des_vars.add_output('u', 0.1, units='m/s')
@@ -816,8 +809,10 @@ if __name__ == "__main__":
     des_vars.add_output('J_xx', 50.0, units='kg*m**2')
     des_vars.add_output('J_yy', 51.0, units='kg*m**2')
     des_vars.add_output('J_zz', 52.0, units='kg*m**2')
+    des_vars.add_output('J_xy', 9.0, units='kg*m**2')
+    des_vars.add_output('J_yz', 9.0, units='kg*m**2')
 
-    p.model.add_subsystem('SixDOF_EOl', SixDOF_EOl(num_nodes=1), promotes=['*'])
+    p.model.add_subsystem('SixDOF_EOM', SixDOF_EOM(num_nodes=1), promotes=['*'])
 
     p.setup(check=False, force_alloc_complex=True)
 
@@ -841,6 +836,6 @@ if __name__ == "__main__":
     print(f"Euler angular rates: {roll_angle_rate_eq}, {pitch_angle_rate_eq}, {yaw_angle_rate_eq}")
     print(f"velocities: {dx_dt}, {dy_dt}, {dz_dt}")
 
-    p.check_partials(compact_print=True, show_only_incorrect=True, method='cs')
+    p.check_partials(compact_print=True, show_only_incorrect=False, method='cs')
 
 
