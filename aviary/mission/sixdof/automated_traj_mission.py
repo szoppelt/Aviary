@@ -108,7 +108,7 @@ class vtolODE(om.Group):
                                            'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
                                            'roll', 'pitch', 'yaw', 
                                            'x', 'y', 'z', 'g', 'lx', 
-                                           'ly', 'lz', 'J_xz', 'J_xx', 'J_yy',
+                                           'ly', 'lz', 'J_xz', 'J_xy', 'J_yz', 'J_xx', 'J_yy',
                                            'J_zz'],
                           promotes_outputs=['*'])
         
@@ -243,6 +243,8 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
             'J_yy': 0.20,  # kg*m^2
             'J_zz': 0.35,  # kg*m^2
             'J_xz': 0.0,  # kg*m^2
+            'J_xy': 0.0, # kg*m^2
+            'J_yz': 0.0, # kg*m^2
             'sphere_radius': 0.5,  # m
             'sphere_Cd': 0.47,
             'g': 9.81,  # m/s^2
@@ -331,34 +333,38 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                         targets=['J_zz'], units='kg*m**2')
         ph.add_parameter('J_xz', val=vehicle_params['J_xz'], static_target=True, 
                         targets=['J_xz'], units='kg*m**2')
+        ph.add_parameter('J_xy', val=vehicle_params['J_xy'], static_target=True,
+                         targets=['J_xy'], units='kg*m**2')
+        ph.add_parameter('J_yz', val=vehicle_params['J_yz'], static_target=True,
+                         targets=['J_yz'], units='kg*m**2')
         ph.add_parameter('lx', val=0.0, static_target=True, targets=['lx'], units='N*m')
         ph.add_parameter('ly', val=0.0, static_target=True, targets=['ly'], units='N*m')
         ph.add_parameter('lz', val=0.0, static_target=True, targets=['lz'], units='N*m')
         
         # Add states
-        ph.add_state('x', rate_source='x_dot', units='m', ref=100, defect_ref=10,
+        ph.add_state('x', rate_source='dx_dt', units='m', ref=100, defect_ref=10,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('y', rate_source='y_dot', units='m', ref=100, defect_ref=10,
+        ph.add_state('y', rate_source='dy_dt', units='m', ref=100, defect_ref=10,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('z', rate_source='z_dot', units='m', ref=100, defect_ref=10,
+        ph.add_state('z', rate_source='dz_dt', units='m', ref=100, defect_ref=10,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('u', rate_source='u_dot', units='m/s', ref=10, defect_ref=1,
+        ph.add_state('u', rate_source='dx_accel', units='m/s', ref=10, defect_ref=1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('v', rate_source='v_dot', units='m/s', ref=10, defect_ref=1,
+        ph.add_state('v', rate_source='dy_accel', units='m/s', ref=10, defect_ref=1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('w', rate_source='w_dot', units='m/s', ref=10, defect_ref=1,
+        ph.add_state('w', rate_source='dz_accel', units='m/s', ref=10, defect_ref=1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('roll', rate_source='roll_dot', units='rad', ref=1, defect_ref=0.1,
+        ph.add_state('roll', rate_source='roll_angle_rate_eq', units='rad', ref=1, defect_ref=0.1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('pitch', rate_source='pitch_dot', units='rad', ref=1, defect_ref=0.1,
+        ph.add_state('pitch', rate_source='pitch_angle_rate_eq', units='rad', ref=1, defect_ref=0.1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('yaw', rate_source='yaw_dot', units='rad', ref=1, defect_ref=0.1,
+        ph.add_state('yaw', rate_source='yaw_angle_rate_eq', units='rad', ref=1, defect_ref=0.1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('roll_ang_vel', rate_source='roll_ang_vel_dot', units='rad/s', 
+        ph.add_state('roll_ang_vel', rate_source='roll_accel', units='rad/s', 
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
-        ph.add_state('pitch_ang_vel', rate_source='pitch_ang_vel_dot', units='rad/s',
+        ph.add_state('pitch_ang_vel', rate_source='pitch_accel', units='rad/s',
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
-        ph.add_state('yaw_ang_vel', rate_source='yaw_ang_vel_dot', units='rad/s',
+        ph.add_state('yaw_ang_vel', rate_source='yaw_accel', units='rad/s',
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
         
         # Add controls
@@ -368,6 +374,9 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                       rate_continuity=False, rate2_continuity=False)
         ph.add_control('T_z', units='N', opt=True, lower=-100, upper=0, ref=10,
                       rate_continuity=False, rate2_continuity=False)
+        #ph.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+        #ph.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+        #ph.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
         
         # Set boundary constraints
         if i == 0:
@@ -446,7 +455,8 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
         # Control guesses
         p.set_val(f'traj.{phase_name}.controls:T_x', [0, 0], units='N')
         p.set_val(f'traj.{phase_name}.controls:T_y', [0, 0], units='N')
-        
+        p.set_val(f'traj.{phase_name}.controls:T_z', [0, 0], units='N')
+
         # Determine mass for thrust guess
         waypoint_idx = (i // 3)
         if i % 3 == 2:
@@ -623,6 +633,8 @@ if __name__ == "__main__":
         'J_yy': 0.20,
         'J_zz': 0.35,
         'J_xz': 0.0,
+        'J_xy': 0.0,
+        'J_yz': 0.0,
         'sphere_radius': 0.5,
         'sphere_Cd': 0.47,
         'g': 9.81,
