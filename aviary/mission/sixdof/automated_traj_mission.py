@@ -432,31 +432,30 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
         p.set_val(f'traj.{phase_name}.t_initial', 0.0 if i == 0 else 30.0*i)
         p.set_val(f'traj.{phase_name}.t_duration', 30.0)
         
-        # Position initial guesses (linear interpolation)
+        # Position initial guesses (use phase['initial'] for single value)
         p.set_val(f'traj.{phase_name}.states:x', 
-                 [phase['start'][0], phase['end'][0]], units='m')
+                 phase['start'][0], units='m')
         p.set_val(f'traj.{phase_name}.states:y',
-                 [phase['start'][1], phase['end'][1]], units='m')
+                 phase['start'][1], units='m')
         p.set_val(f'traj.{phase_name}.states:z',
-                 [phase['start'][2], phase['end'][2]], units='m')
+                 phase['start'][2], units='m')
         
         # Velocity guesses
-        p.set_val(f'traj.{phase_name}.states:u', [0, 0], units='m/s')
-        p.set_val(f'traj.{phase_name}.states:v', [0, 0], units='m/s')
-        p.set_val(f'traj.{phase_name}.states:w', [0, 0], units='m/s')
+        p.set_val(f'traj.{phase_name}.states:u', 0, units='m/s')
+        p.set_val(f'traj.{phase_name}.states:v', 0, units='m/s')
+        p.set_val(f'traj.{phase_name}.states:w', 0, units='m/s')
         
         # Attitude guesses
-        p.set_val(f'traj.{phase_name}.states:roll', [0, 0], units='rad')
-        p.set_val(f'traj.{phase_name}.states:pitch', [0, 0], units='rad')
-        p.set_val(f'traj.{phase_name}.states:yaw', [0, 0], units='rad')
-        p.set_val(f'traj.{phase_name}.states:roll_angle_vel', [0, 0], units='rad/s')
-        p.set_val(f'traj.{phase_name}.states:pitch_angle_vel', [0, 0], units='rad/s')
-        p.set_val(f'traj.{phase_name}.states:yaw_ang_vel', [0, 0], units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:roll', 0, units='rad')
+        p.set_val(f'traj.{phase_name}.states:pitch', 0, units='rad')
+        p.set_val(f'traj.{phase_name}.states:yaw', 0, units='rad')
+        p.set_val(f'traj.{phase_name}.states:roll_ang_vel', 0, units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:pitch_ang_vel', 0, units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:yaw_ang_vel', 0, units='rad/s')
         
         # Control guesses
-        p.set_val(f'traj.{phase_name}.controls:T_x', [0, 0], units='N')
-        p.set_val(f'traj.{phase_name}.controls:T_y', [0, 0], units='N')
-        p.set_val(f'traj.{phase_name}.controls:T_z', [0, 0], units='N')
+        p.set_val(f'traj.{phase_name}.controls:T_x', 0, units='N')
+        p.set_val(f'traj.{phase_name}.controls:T_y', 0, units='N')
 
         # Determine mass for thrust guess
         waypoint_idx = (i // 3)
