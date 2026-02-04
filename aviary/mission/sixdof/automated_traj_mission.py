@@ -171,11 +171,13 @@ def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
         waypoint_num = idx + 1
         
         # Determine cruise altitude (use max of current z or waypoint z, plus buffer)
-        z_cruise = max(abs(current_pos[2]), abs(waypoint[2])) + 100.0
+        #z_cruise = max(abs(current_pos[2]), abs(waypoint[2])) + 100.0
+        highest_point = min(current_pos[2], waypoint[2])
+        z_cruise = highest_point - 100.0 # More negative = higher altitude
         
         # Phase 1: Climb from current position to cruise altitude
         climb_end = current_pos.copy()
-        climb_end[2] = -z_cruise  # Negative because NED coordinates
+        climb_end[2] = z_cruise  # Negative because NED coordinates
         
         phase_info.append({
             'name': f'climb{waypoint_num}',
@@ -187,7 +189,7 @@ def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
         
         # Phase 2: Cruise at altitude to waypoint x,y position
         cruise_end = waypoint.copy()
-        cruise_end[2] = -z_cruise  # Maintain cruise altitude
+        cruise_end[2] = z_cruise  # Maintain cruise altitude
         
         phase_info.append({
             'name': f'cruise{waypoint_num}',
@@ -311,7 +313,7 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
         
         # Create phase
         ph = dm.Phase(ode_class=vtolODE,
-                      transcription=dm.Radau(num_segments=10, order=3))
+                      transcription=dm.Radau(num_segments=5, order=3))
         
         ph = traj.add_phase(phase_name, ph)
         
@@ -337,9 +339,9 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                          targets=['J_xy'], units='kg*m**2')
         ph.add_parameter('J_yz', val=vehicle_params['J_yz'], static_target=True,
                          targets=['J_yz'], units='kg*m**2')
-        ph.add_parameter('lx', val=0.0, static_target=True, targets=['lx'], units='N*m')
-        ph.add_parameter('ly', val=0.0, static_target=True, targets=['ly'], units='N*m')
-        ph.add_parameter('lz', val=0.0, static_target=True, targets=['lz'], units='N*m')
+        #ph.add_parameter('lx', static_target=True, targets=['lx'], units='N*m')
+        #ph.add_parameter('ly', static_target=True, targets=['ly'], units='N*m')
+        #ph.add_parameter('lz', static_target=True, targets=['lz'], units='N*m')
         
         # Add states
         ph.add_state('x', rate_source='dx_dt', units='m', ref=100, defect_ref=10,
@@ -374,9 +376,9 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                       rate_continuity=False, rate2_continuity=False)
         ph.add_control('T_z', units='N', opt=True, lower=-100, upper=0, ref=10,
                       rate_continuity=False, rate2_continuity=False)
-        #ph.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
-        #ph.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
-        #ph.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
+        ph.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
+        ph.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
+        ph.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
         
         # Set boundary constraints
         if i == 0:
@@ -449,13 +451,16 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
         p.set_val(f'traj.{phase_name}.states:roll', 0, units='rad')
         p.set_val(f'traj.{phase_name}.states:pitch', 0, units='rad')
         p.set_val(f'traj.{phase_name}.states:yaw', 0, units='rad')
-        p.set_val(f'traj.{phase_name}.states:roll_ang_vel', 0, units='rad/s')
-        p.set_val(f'traj.{phase_name}.states:pitch_ang_vel', 0, units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:roll_angle_vel', 0, units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:pitch_angle_vel', 0, units='rad/s')
         p.set_val(f'traj.{phase_name}.states:yaw_ang_vel', 0, units='rad/s')
         
         # Control guesses
         p.set_val(f'traj.{phase_name}.controls:T_x', 0, units='N')
         p.set_val(f'traj.{phase_name}.controls:T_y', 0, units='N')
+        p.set_val(f'traj.{phase_name}.controls:lx', 0, units='N*m')
+        p.set_val(f'traj.{phase_name}.controls:ly', 0, units='N*m')
+        p.set_val(f'traj.{phase_name}.controls:lz', 0, units='N*m')
 
         # Determine mass for thrust guess
         waypoint_idx = (i // 3)
@@ -468,7 +473,7 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                 mass_val = vehicle_params['mass_empty'] + vehicle_params['mass_payload']
         
         p.set_val(f'traj.{phase_name}.controls:T_z', 
-                 [-mass_val * vehicle_params['g'], -mass_val * vehicle_params['g']], 
+                 -mass_val * vehicle_params['g'], 
                  units='N')
     
     return p, phase_sequence, phase_info, waypoints
@@ -488,7 +493,7 @@ def plot_trajectory(p, phase_sequence, waypoints):
         Waypoint coordinates
     """
     # Get solution
-    sol = om.CaseReader('dymos_solution.db').get_case('final')
+    sol = om.CaseReader(p.get_outputs_dir() / 'dymos_solution.db').get_case('final')
     
     # Extract trajectory data
     x_sim = {}
@@ -501,11 +506,11 @@ def plot_trajectory(p, phase_sequence, waypoints):
     for phase_name in phase_sequence:
         x_sim[phase_name] = p.get_val(f'traj.{phase_name}.timeseries.x')
         y_sim[phase_name] = p.get_val(f'traj.{phase_name}.timeseries.y')
-        z_sim[phase_name] = p.get_val(f'traj.{phase_name}.timeseries.z')
+        z_sim[phase_name] = -p.get_val(f'traj.{phase_name}.timeseries.z')
         
         x_sol[phase_name] = sol.get_val(f'traj.{phase_name}.states:x')
         y_sol[phase_name] = sol.get_val(f'traj.{phase_name}.states:y')
-        z_sol[phase_name] = sol.get_val(f'traj.{phase_name}.states:z')
+        z_sol[phase_name] = -sol.get_val(f'traj.{phase_name}.states:z')
     
     # Create 3D plot
     fig = plt.figure(figsize=(14, 10))
@@ -646,10 +651,15 @@ if __name__ == "__main__":
     )
     
     print("\nRunning optimization...")
-    dm.run_problem(p, simulate=True, make_plots=False)
+    dm.run_problem(p, run_driver=True, simulate=True, make_plots=False)
     
     print("\nOptimization complete!")
-    print(f"Total mission time: {p.get_val('traj.descent{}.time'.format(len(waypoints)), units='s')[-1]:.2f} s")
-    
+
+    last_phase = phase_sequence[-1]
+    total_time = p.get_val(f'traj.{last_phase}.timeseries.time', units='s')[-1]
+    print(f"Total mission time: {float(total_time):.2f} s")
+
     # Plot results
     plot_trajectory(p, phase_sequence, waypoints)
+
+    
