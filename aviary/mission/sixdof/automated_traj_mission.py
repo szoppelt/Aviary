@@ -105,7 +105,7 @@ class vtolODE(om.Group):
         self.add_subsystem('eom', 
                           SixDOF_EOM(num_nodes=nn),
                           promotes_inputs=['mass', 'u', 'v', 'w', 
-                                           'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel',
+                                           'roll_angle_vel', 'pitch_angle_vel', 'yaw_ang_vel',
                                            'roll', 'pitch', 'yaw', 
                                            'x', 'y', 'z', 'g', 'lx', 
                                            'ly', 'lz', 'J_xz', 'J_xy', 'J_yz', 'J_xx', 'J_yy',
@@ -360,9 +360,9 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
                     fix_initial=(i==0), fix_final=False)
         ph.add_state('yaw', rate_source='yaw_angle_rate_eq', units='rad', ref=1, defect_ref=0.1,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('roll_ang_vel', rate_source='roll_accel', units='rad/s', 
+        ph.add_state('roll_angle_vel', rate_source='roll_accel', units='rad/s', 
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
-        ph.add_state('pitch_ang_vel', rate_source='pitch_accel', units='rad/s',
+        ph.add_state('pitch_angle_vel', rate_source='pitch_accel', units='rad/s',
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
         ph.add_state('yaw_ang_vel', rate_source='yaw_accel', units='rad/s',
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
@@ -390,8 +390,8 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
             ph.add_boundary_constraint('roll', loc='initial', equals=0.0)
             ph.add_boundary_constraint('pitch', loc='initial', equals=0.0)
             ph.add_boundary_constraint('yaw', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('roll_ang_vel', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('pitch_ang_vel', loc='initial', equals=0.0)
+            ph.add_boundary_constraint('roll_angle_vel', loc='initial', equals=0.0)
+            ph.add_boundary_constraint('pitch_angle_vel', loc='initial', equals=0.0)
             ph.add_boundary_constraint('yaw_ang_vel', loc='initial', equals=0.0)
         
         # Final boundary constraints
@@ -406,19 +406,20 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
             ph.add_boundary_constraint('w', loc='final', equals=0.0)
             ph.add_boundary_constraint('roll', loc='final', equals=0.0)
             ph.add_boundary_constraint('pitch', loc='final', equals=0.0)
-            ph.add_boundary_constraint('roll_ang_vel', loc='final', equals=0.0)
-            ph.add_boundary_constraint('pitch_ang_vel', loc='final', equals=0.0)
+            ph.add_boundary_constraint('roll_angle_vel', loc='final', equals=0.0)
+            ph.add_boundary_constraint('pitch_angle_vel', loc='final', equals=0.0)
             ph.add_boundary_constraint('yaw_ang_vel', loc='final', equals=0.0)
-        
-        # Add objective (minimize time for each phase)
-        ph.add_objective('time', loc='final', ref=30)
+            
     
     # Link phases
     for i in range(len(phase_info) - 1):
         traj.link_phases([phase_info[i]['name'], phase_info[i+1]['name']], 
                         ['time', 'x', 'y', 'z', 'u', 'v', 'w',
                          'roll', 'pitch', 'yaw', 
-                         'roll_ang_vel', 'pitch_ang_vel', 'yaw_ang_vel'])
+                         'roll_angle_vel', 'pitch_angle_vel', 'yaw_ang_vel'])
+    
+    last_phase_name = phase_info[-1]['name']
+    traj.add_objective(f'{last_phase_name}.timeseries.time', index=-1, ref=100)
     
     p.model.add_subsystem('traj', traj)
     
@@ -448,8 +449,8 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
         p.set_val(f'traj.{phase_name}.states:roll', [0, 0], units='rad')
         p.set_val(f'traj.{phase_name}.states:pitch', [0, 0], units='rad')
         p.set_val(f'traj.{phase_name}.states:yaw', [0, 0], units='rad')
-        p.set_val(f'traj.{phase_name}.states:roll_ang_vel', [0, 0], units='rad/s')
-        p.set_val(f'traj.{phase_name}.states:pitch_ang_vel', [0, 0], units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:roll_angle_vel', [0, 0], units='rad/s')
+        p.set_val(f'traj.{phase_name}.states:pitch_angle_vel', [0, 0], units='rad/s')
         p.set_val(f'traj.{phase_name}.states:yaw_ang_vel', [0, 0], units='rad/s')
         
         # Control guesses
@@ -623,7 +624,7 @@ def plot_trajectory(p, phase_sequence, waypoints):
 
 if __name__ == "__main__":
     # Example usage
-    waypoints_file = "waypoints.txt"  # Change this to your file
+    waypoints_file = "aviary/mission/sixdof/waypoints.txt"  # Change this to your file
     
     # Optional: Customize vehicle parameters
     custom_params = {
