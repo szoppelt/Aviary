@@ -22,6 +22,64 @@ OPT, OPTIMIZER = set_pyoptsparse_opt('SNOPT')
 if OPTIMIZER:
     from openmdao.drivers.pyoptsparse_driver import pyOptSparseDriver
 
+class ObstacleAvoidanceComp(om.ExplicitComponent):
+    """
+    Component to compute minimum distance to rectangular obstacles.
+    Ensures vehicle stays outside obstacle boundaries with a safety buffer.
+    """
+    def initialize(self):
+        self.options.declare('num_nodes', types=int)
+        self.options.declare('obstacles', types=list, default=[])
+    
+    def setup(self):
+        nn = self.options['num_nodes']
+        num_obs = len(self.options['obstacles'])
+        
+        # Inputs: vehicle position
+        self.add_input('x', shape=(nn,), units='m', desc='X position')
+        self.add_input('y', shape=(nn,), units='m', desc='Y position')
+        self.add_input('z', shape=(nn,), units='m', desc='Z position (NED)')
+        
+        # Outputs: clearance distance for each obstacle (should be >= 0)
+        for i in range(num_obs):
+            self.add_output(f'obstacle_{i}_clearance', shape=(nn,), units='m',
+                           desc=f'Clearance distance from obstacle {i} (negative = inside)')
+        
+        # Declare partials
+        for i in range(num_obs):
+            self.declare_partials(f'obstacle_{i}_clearance', ['x', 'y', 'z'], method='fd')
+    
+    def compute(self, inputs, outputs):
+        obstacles = self.options['obstacles']
+        x = inputs['x']
+        y = inputs['y']
+        z = inputs['z']
+        
+        for i, obs in enumerate(obstacles):
+            # Compute signed distance to obstacle (positive = outside, negative = inside)
+            # For a box, the clearance is the minimum distance to get outside
+            
+            # Distance to each face (negative if inside that range)
+            dx_min = x - (obs['x_min'] - obs['buffer'])  # Distance from left face
+            dx_max = (obs['x_max'] + obs['buffer']) - x  # Distance from right face
+            dy_min = y - (obs['y_min'] - obs['buffer'])  # Distance from front face
+            dy_max = (obs['y_max'] + obs['buffer']) - y  # Distance from back face
+            dz_min = z - (obs['z_min'] - obs['buffer'])  # Distance from bottom (in NED)
+            dz_max = (obs['z_max'] + obs['buffer']) - z  # Distance from top (in NED)
+            
+            # The clearance is positive if outside in ANY dimension
+            # It's the maximum of the minimum distances to opposite faces
+            clearance_x = np.maximum(-dx_min, -dx_max)  # Negative if between faces
+            clearance_y = np.maximum(-dy_min, -dy_max)
+            clearance_z = np.maximum(-dz_min, -dz_max)
+            
+            # Overall clearance: if negative in all dimensions, we're inside
+            # If positive in any dimension, we're outside
+            # Use minimum of the three (most constraining direction)
+            outputs[f'obstacle_{i}_clearance'] = np.minimum(
+                np.minimum(clearance_x, clearance_y), clearance_z
+            )
+
 
 class vtolODE(om.Group):
     """
@@ -29,9 +87,11 @@ class vtolODE(om.Group):
     """
     def initialize(self):
         self.options.declare('num_nodes', types=int)
+        self.options.declare('obstacles', types=List, default=[])
         
     def setup(self):
         nn = self.options['num_nodes']
+        obstacles = self.options['obstacles']
 
         # Convert z (NED, down positive) to h (altitude, up positive)
         self.add_subsystem('altitude_calc',
@@ -116,6 +176,12 @@ class vtolODE(om.Group):
         self.connect('forces.Fy', 'eom.Fy')
         self.connect('forces.Fz', 'eom.Fz')
 
+        if obstacles:
+            self.add_subsystem('obstacle_avoidance',
+                               ObstacleAvoidanceComp(num_nodes=nn, obstacles=obstacles),
+                               promotes_inputs=['x', 'y', 'z'],
+                               promotes_outputs=['obstacle_*_clearance'])
+
 
 def load_waypoints(filename):
     """
@@ -140,6 +206,75 @@ def load_waypoints(filename):
         raise ValueError(f"Expected 3 columns (x, y, z), got {waypoints.shape[1]}")
     
     return waypoints
+
+def load_obstacles(filename):
+    """
+    Load obstacle definitions from a text file.
+    
+    Parameters:
+    -----------
+    filename : str
+        Path to text file with 6 columns: x_min, x_max, y_min, y_max, z_min, z_max
+        Each row defines one rectangular prism obstacle (no-fly zone)
+        
+    Returns:
+    --------
+    obstacles : list of dicts
+        Each dict contains: {
+            'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max': bounds,
+            'x_center', 'y_center', 'z_center': center point,
+            'buffer': safety buffer distance (default 10m)
+        }
+    """
+    try:
+        obstacle_data = np.loadtxt(filename)
+        if obstacle_data.size == 0:
+            return []
+        
+        if obstacle_data.ndim == 1:
+            obstacle_data = obstacle_data.reshape(1, -1)
+        
+        if obstacle_data.shape[1] != 6:
+            raise ValueError(f"Obstacle file expected 6 columns (x_min, x_max, y_min, y_max, z_min, z_max), got {obstacle_data.shape[1]}")
+        
+        obstacles = []
+        for i, obs_row in enumerate(obstacle_data):
+            x_min, x_max, y_min, y_max, z_min, z_max = obs_row
+            
+            # Convert altitude (positive up) to NED z (negative up)
+            z_min_ned = -z_max  # Top of obstacle in NED
+            z_max_ned = -z_min  # Bottom of obstacle in NED
+            
+            obstacle = {
+                'x_min': x_min,
+                'x_max': x_max,
+                'y_min': y_min,
+                'y_max': y_max,
+                'z_min': z_min_ned,  # In NED coordinates
+                'z_max': z_max_ned,  # In NED coordinates
+                'z_min_altitude': z_min,  # Original altitude (for plotting)
+                'z_max_altitude': z_max,  # Original altitude (for plotting)
+                'x_center': (x_min + x_max) / 2,
+                'y_center': (y_min + y_max) / 2,
+                'z_center': (z_min_ned + z_max_ned) / 2,
+                'buffer': 10.0  # Safety buffer in meters
+            }
+            obstacles.append(obstacle)
+        
+        print(f"\nLoaded {len(obstacles)} obstacle(s):")
+        for i, obs in enumerate(obstacles):
+            print(f"  Obstacle {i+1}: x=[{obs['x_min']:.1f}, {obs['x_max']:.1f}], "
+                  f"y=[{obs['y_min']:.1f}, {obs['y_max']:.1f}], "
+                  f"altitude=[{obs['z_min_altitude']:.1f}, {obs['z_max_altitude']:.1f}]m")
+        
+        return obstacles
+    
+    except FileNotFoundError:
+        print(f"\nNo obstacle file found at {filename}, proceeding without obstacles.")
+        return []
+    except Exception as e:
+        print(f"\nError loading obstacles: {e}")
+        return []
 
 
 def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
@@ -214,7 +349,7 @@ def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
     return phase_info
 
 
-def setup_trajectory(waypoints_file, vehicle_params=None):
+def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     """
     Set up the trajectory optimization problem based on waypoints file.
     
@@ -257,6 +392,11 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
     print(f"Loaded {len(waypoints)} waypoint(s) from {waypoints_file}")
     for i, wp in enumerate(waypoints):
         print(f"  Waypoint {i+1}: x={wp[0]:.1f}, y={wp[1]:.1f}, z={wp[2]:.1f}")
+    
+    # Load obstacles if provided
+    obstacles = []
+    if obstacles_file:
+        obstacles = load_obstacles(obstacles_file)
     
     # Create phase sequence
     phase_info = create_phase_sequence(waypoints)
@@ -411,6 +551,13 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
             ph.add_boundary_constraint('roll_angle_vel', loc='final', equals=0.0)
             ph.add_boundary_constraint('pitch_angle_vel', loc='final', equals=0.0)
             ph.add_boundary_constraint('yaw_ang_vel', loc='final', equals=0.0)
+        
+        if obstacles:
+            for obs_idx in range(len(obstacles)):
+                # Constrain clearance to be >= 0 (outside obstacle)
+                ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
+                                       lower=0.0,
+                                       ref=10.0)
             
     
     # Link phases
@@ -479,7 +626,7 @@ def setup_trajectory(waypoints_file, vehicle_params=None):
     return p, phase_sequence, phase_info, waypoints
 
 
-def plot_trajectory(p, phase_sequence, waypoints):
+def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
     """
     Plot the optimized trajectory in 3D.
     
@@ -538,6 +685,37 @@ def plot_trajectory(p, phase_sequence, waypoints):
     ax.plot([final_wp[0]], [final_wp[1]], [final_wp[2]], marker='s', color='red', 
            markersize=10, markeredgecolor='black', label='End')
     
+    # Plot obstacles as wireframe boxes
+    if obstacles:
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        for obs in obstacles:
+            # Define the 8 vertices of the box (in altitude coordinates for plotting)
+            vertices = [
+                [obs['x_min'], obs['y_min'], obs['z_min_altitude']],
+                [obs['x_max'], obs['y_min'], obs['z_min_altitude']],
+                [obs['x_max'], obs['y_max'], obs['z_min_altitude']],
+                [obs['x_min'], obs['y_max'], obs['z_min_altitude']],
+                [obs['x_min'], obs['y_min'], obs['z_max_altitude']],
+                [obs['x_max'], obs['y_min'], obs['z_max_altitude']],
+                [obs['x_max'], obs['y_max'], obs['z_max_altitude']],
+                [obs['x_min'], obs['y_max'], obs['z_max_altitude']]
+            ]
+            
+            # Define the 6 faces of the box
+            faces = [
+                [vertices[0], vertices[1], vertices[2], vertices[3]],  # Bottom
+                [vertices[4], vertices[5], vertices[6], vertices[7]],  # Top
+                [vertices[0], vertices[1], vertices[5], vertices[4]],  # Front
+                [vertices[2], vertices[3], vertices[7], vertices[6]],  # Back
+                [vertices[0], vertices[3], vertices[7], vertices[4]],  # Left
+                [vertices[1], vertices[2], vertices[6], vertices[5]]   # Right
+            ]
+            
+            # Create collection and add to plot
+            face_collection = Poly3DCollection(faces, alpha=0.25, facecolor='red',
+                                              edgecolor='darkred', linewidth=2)
+            ax.add_collection3d(face_collection)
+    
     # Labels
     ax.set_xlabel('X Position (m)', fontsize=12, labelpad=10)
     ax.set_ylabel('Y Position (m)', fontsize=12, labelpad=10)
@@ -578,6 +756,18 @@ def plot_trajectory(p, phase_sequence, waypoints):
     ax1.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
     ax1.plot(final_wp[0], final_wp[1], 's', color='red', markersize=8, 
             markeredgecolor='black')
+    
+    # Draw obstacles as rectangles in top view
+    if obstacles:
+        from matplotlib.patches import Rectangle
+        for obs in obstacles:
+            rect = Rectangle((obs['x_min'], obs['y_min']),
+                           obs['x_max'] - obs['x_min'],
+                           obs['y_max'] - obs['y_min'],
+                           linewidth=2, edgecolor='darkred',
+                           facecolor='red', alpha=0.3)
+            ax1.add_patch(rect)
+    
     ax1.set_xlabel('X Position (m)')
     ax1.set_ylabel('Y Position (m)')
     ax1.grid(True, alpha=0.3)
@@ -596,6 +786,18 @@ def plot_trajectory(p, phase_sequence, waypoints):
     ax2.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
     ax2.plot(final_wp[0], final_wp[2], 's', color='red', markersize=8,
             markeredgecolor='black')
+    
+    # Draw obstacles as rectangles in side view
+    if obstacles:
+        from matplotlib.patches import Rectangle
+        for obs in obstacles:
+            rect = Rectangle((obs['x_min'], obs['z_min_altitude']),
+                           obs['x_max'] - obs['x_min'],
+                           obs['z_max_altitude'] - obs['z_min_altitude'],
+                           linewidth=2, edgecolor='darkred',
+                           facecolor='red', alpha=0.3)
+            ax2.add_patch(rect)
+    
     ax2.set_xlabel('X Position (m)')
     ax2.set_ylabel('Z Position (m)')
     ax2.grid(True, alpha=0.3)
@@ -613,6 +815,18 @@ def plot_trajectory(p, phase_sequence, waypoints):
     ax3.plot(0, 0, 's', color='green', markersize=8, markeredgecolor='black')
     ax3.plot(final_wp[1], final_wp[2], 's', color='red', markersize=8,
             markeredgecolor='black')
+    
+    # Draw obstacles as rectangles in front view
+    if obstacles:
+        from matplotlib.patches import Rectangle
+        for obs in obstacles:
+            rect = Rectangle((obs['y_min'], obs['z_min_altitude']),
+                           obs['y_max'] - obs['y_min'],
+                           obs['z_max_altitude'] - obs['z_min_altitude'],
+                           linewidth=2, edgecolor='darkred',
+                           facecolor='red', alpha=0.3)
+            ax3.add_patch(rect)
+    
     ax3.set_xlabel('Y Position (m)')
     ax3.set_ylabel('Z Position (m)')
     ax3.grid(True, alpha=0.3)
@@ -629,6 +843,7 @@ def plot_trajectory(p, phase_sequence, waypoints):
 if __name__ == "__main__":
     # Example usage
     waypoints_file = "aviary/mission/sixdof/waypoints.txt"  # Change this to your file
+    obstacles_file = "aviary/mission/sixdof/obstacles.txt"
     
     # Optional: Customize vehicle parameters
     custom_params = {
