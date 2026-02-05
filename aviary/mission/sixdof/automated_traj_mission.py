@@ -87,7 +87,7 @@ class vtolODE(om.Group):
     """
     def initialize(self):
         self.options.declare('num_nodes', types=int)
-        self.options.declare('obstacles', types=List, default=[])
+        self.options.declare('obstacles', types=list, default=[])
         
     def setup(self):
         nn = self.options['num_nodes']
@@ -177,10 +177,13 @@ class vtolODE(om.Group):
         self.connect('forces.Fz', 'eom.Fz')
 
         if obstacles:
+            print(f"    ODE: Adding obstacle avoidance component with {len(obstacles)} in obstacle(s)")
             self.add_subsystem('obstacle_avoidance',
                                ObstacleAvoidanceComp(num_nodes=nn, obstacles=obstacles),
                                promotes_inputs=['x', 'y', 'z'],
                                promotes_outputs=['obstacle_*_clearance'])
+        else:
+            print(f"    ODE: No obstacles, skipping obstacles avoidance component")
 
 
 def load_waypoints(filename):
@@ -453,6 +456,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         
         # Create phase
         ph = dm.Phase(ode_class=vtolODE,
+                      ode_init_kwargs={'obstacles': obstacles},
                       transcription=dm.Radau(num_segments=5, order=3))
         
         ph = traj.add_phase(phase_name, ph)
@@ -623,7 +627,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
                  -mass_val * vehicle_params['g'], 
                  units='N')
     
-    return p, phase_sequence, phase_info, waypoints
+    return p, phase_sequence, phase_info, waypoints, obstacles
 
 
 def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
@@ -861,8 +865,8 @@ if __name__ == "__main__":
     }
     
     # Setup and solve
-    p, phase_sequence, phase_info, waypoints = setup_trajectory(
-        waypoints_file, vehicle_params=custom_params
+    p, phase_sequence, phase_info, waypoints, obstacles = setup_trajectory(
+        waypoints_file, obstacles_file=obstacles_file, vehicle_params=custom_params
     )
     
     print("\nRunning optimization...")
@@ -875,6 +879,6 @@ if __name__ == "__main__":
     print(f"Total mission time: {float(total_time):.2f} s")
 
     # Plot results
-    plot_trajectory(p, phase_sequence, waypoints)
+    plot_trajectory(p, phase_sequence, waypoints, obstacles)
 
     
