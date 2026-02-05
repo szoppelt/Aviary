@@ -56,29 +56,57 @@ class ObstacleAvoidanceComp(om.ExplicitComponent):
         z = inputs['z']
         
         for i, obs in enumerate(obstacles):
-            # Compute signed distance to obstacle (positive = outside, negative = inside)
-            # For a box, the clearance is the minimum distance to get outside
+            # Compute signed distance to rectangular box obstacle
+            # Positive distance = outside obstacle (safe)
+            # Negative distance = inside obstacle (violation)
             
-            # Distance to each face (negative if inside that range)
-            dx_min = x - (obs['x_min'] - obs['buffer'])  # Distance from left face
-            dx_max = (obs['x_max'] + obs['buffer']) - x  # Distance from right face
-            dy_min = y - (obs['y_min'] - obs['buffer'])  # Distance from front face
-            dy_max = (obs['y_max'] + obs['buffer']) - y  # Distance from back face
-            dz_min = z - (obs['z_min'] - obs['buffer'])  # Distance from bottom (in NED)
-            dz_max = (obs['z_max'] + obs['buffer']) - z  # Distance from top (in NED)
+            # With buffer included
+            x_min_buf = obs['x_min'] - obs['buffer']
+            x_max_buf = obs['x_max'] + obs['buffer']
+            y_min_buf = obs['y_min'] - obs['buffer']
+            y_max_buf = obs['y_max'] + obs['buffer']
+            z_min_buf = obs['z_min'] - obs['buffer']
+            z_max_buf = obs['z_max'] + obs['buffer']
             
-            # The clearance is positive if outside in ANY dimension
-            # It's the maximum of the minimum distances to opposite faces
-            clearance_x = np.maximum(-dx_min, -dx_max)  # Negative if between faces
-            clearance_y = np.maximum(-dy_min, -dy_max)
-            clearance_z = np.maximum(-dz_min, -dz_max)
+            # Distance to box in each dimension
+            # If point is between min and max, distance in that dimension is 0
+            # Otherwise, it's the distance to the nearest edge
+            dx = np.maximum(np.maximum(x_min_buf - x, x - x_max_buf), 0)
+            dy = np.maximum(np.maximum(y_min_buf - y, y - y_max_buf), 0)
+            dz = np.maximum(np.maximum(z_min_buf - z, z - z_max_buf), 0)
             
-            # Overall clearance: if negative in all dimensions, we're inside
-            # If positive in any dimension, we're outside
-            # Use minimum of the three (most constraining direction)
-            outputs[f'obstacle_{i}_clearance'] = np.minimum(
-                np.minimum(clearance_x, clearance_y), clearance_z
+            # Euclidean distance to box surface
+            # If any d is > 0, we're outside in that dimension
+            distance = np.sqrt(dx**2 + dy**2 + dz**2)
+            
+            # Check if we're inside the box (all dimensions between min/max)
+            inside_x = (x >= x_min_buf) & (x <= x_max_buf)
+            inside_y = (y >= y_min_buf) & (y <= y_max_buf)
+            inside_z = (z >= z_min_buf) & (z <= z_max_buf)
+            inside = inside_x & inside_y & inside_z
+            
+            # If inside, distance should be negative
+            # Find the minimum distance to get out
+            dist_to_x_min = x - x_min_buf
+            dist_to_x_max = x_max_buf - x
+            dist_to_y_min = y - y_min_buf
+            dist_to_y_max = y_max_buf - y
+            dist_to_z_min = z - z_min_buf
+            dist_to_z_max = z_max_buf - z
+            
+            # Minimum distance to any face (for points inside)
+            min_dist_out = np.minimum(
+                np.minimum(dist_to_x_min, dist_to_x_max),
+                np.minimum(
+                    np.minimum(dist_to_y_min, dist_to_y_max),
+                    np.minimum(dist_to_z_min, dist_to_z_max)
+                )
             )
+            
+            # Final clearance: positive if outside, negative if inside
+            clearance = np.where(inside, -min_dist_out, distance)
+            
+            outputs[f'obstacle_{i}_clearance'] = clearance
 
 
 class vtolODE(om.Group):
@@ -351,6 +379,54 @@ def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
     
     return phase_info
 
+def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_type):
+    """
+    Compute an initial guess for x, y that avoids obstacles.
+    
+    For cruise phases, route around obstacles in the horizontal plane.
+    """
+    if phase_type != 'cruise' or not obstacles:
+        # For climb/descent or no obstacles, use straight line
+        return phase_start[0], phase_start[1]
+    
+    # Check if straight line from start to end intersects any obstacle
+    x_start, y_start = phase_start[0], phase_start[1]
+    x_end, y_end = phase_end[0], phase_end[1]
+    
+    for obs in obstacles:
+        # Check if the straight line path intersects obstacle in XY plane
+        # Simple check: does line segment pass through obstacle rectangle?
+        
+        # If line passes through obstacle, offset the path
+        # Route around the obstacle by going to the side
+        
+        # Find which side to go around (left/right or front/back)
+        obs_center_x = (obs['x_min'] + obs['x_max']) / 2
+        obs_center_y = (obs['y_min'] + obs['y_max']) / 2
+        
+        # Compute midpoint of path
+        mid_x = (x_start + x_end) / 2
+        mid_y = (y_start + y_end) / 2
+        
+        # Check if midpoint is near obstacle
+        near_x = (mid_x > obs['x_min'] - 20) and (mid_x < obs['x_max'] + 20)
+        near_y = (mid_y > obs['y_min'] - 20) and (mid_y < obs['y_max'] + 20)
+        
+        if near_x and near_y:
+            # Path likely intersects obstacle, add offset
+            # Go around in Y direction
+            if mid_y < obs_center_y:
+                # Pass below obstacle
+                mid_y = obs['y_min'] - obs['buffer'] - 20
+            else:
+                # Pass above obstacle  
+                mid_y = obs['y_max'] + obs['buffer'] + 20
+            
+            return mid_x, mid_y
+    
+    # No obstacles in the way, use straight midpoint
+    return (x_start + x_end) / 2, (y_start + y_end) / 2
+
 
 def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     """
@@ -560,8 +636,9 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             for obs_idx in range(len(obstacles)):
                 # Constrain clearance to be >= 0 (outside obstacle)
                 ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
-                                       lower=-0.5,
-                                       ref=10.0)
+                                       lower=-2.0,
+                                       ref=50.0,
+                                       linear=False)
             
     
     # Link phases
@@ -584,14 +661,23 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         
         p.set_val(f'traj.{phase_name}.t_initial', 0.0 if i == 0 else 30.0*i)
         p.set_val(f'traj.{phase_name}.t_duration', 30.0)
+
+        # Position initial guesses - route around obstacles
+        guess_x, guess_y = compute_obstacle_avoiding_guess(
+            phase['start'], phase['end'], obstacles, phase['type']
+        )
+
+        p.set_val(f'traj.{phase_name}.states:x', guess_x, units='m')
+        p.set_val(f'traj.{phase_name}.states:y', guess_y, units='m')
+        p.set_val(f'traj.{phase_name}.states:z', phase['start'][2], units='m')
         
         # Position initial guesses (use phase['initial'] for single value)
-        p.set_val(f'traj.{phase_name}.states:x', 
-                 phase['start'][0], units='m')
-        p.set_val(f'traj.{phase_name}.states:y',
-                 phase['start'][1], units='m')
-        p.set_val(f'traj.{phase_name}.states:z',
-                 phase['start'][2], units='m')
+        #p.set_val(f'traj.{phase_name}.states:x', 
+        #         phase['start'][0], units='m')
+        #p.set_val(f'traj.{phase_name}.states:y',
+        #         phase['start'][1], units='m')
+        #p.set_val(f'traj.{phase_name}.states:z',
+        #         phase['start'][2], units='m')
         
         # Velocity guesses
         p.set_val(f'traj.{phase_name}.states:u', 0, units='m/s')
