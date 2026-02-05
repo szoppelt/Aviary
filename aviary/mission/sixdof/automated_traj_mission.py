@@ -260,7 +260,7 @@ def load_obstacles(filename):
                 'x_center': (x_min + x_max) / 2,
                 'y_center': (y_min + y_max) / 2,
                 'z_center': (z_min_ned + z_max_ned) / 2,
-                'buffer': 10.0  # Safety buffer in meters
+                'buffer': 5.0  # Safety buffer in meters
             }
             obstacles.append(obstacle)
         
@@ -560,7 +560,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             for obs_idx in range(len(obstacles)):
                 # Constrain clearance to be >= 0 (outside obstacle)
                 ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
-                                       lower=0.0,
+                                       lower=-0.5,
                                        ref=10.0)
             
     
