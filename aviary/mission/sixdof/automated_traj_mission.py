@@ -679,22 +679,67 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             ph.add_boundary_constraint('roll_angle_vel', loc='initial', equals=0.0)
             ph.add_boundary_constraint('pitch_angle_vel', loc='initial', equals=0.0)
             ph.add_boundary_constraint('yaw_ang_vel', loc='initial', equals=0.0)
+
+            # Vertical takeoff - constrain horizontal motion during climb
+            if phase['type'] == 'climb':
+                ph.add_path_constraint('u', lower=-2.0, upper=2.0, units='m/s')  # Minimal horizontal velocity
+                ph.add_path_constraint('v', lower=-2.0, upper=2.0, units='m/s')
         
         # Final boundary constraints
         ph.add_boundary_constraint('x', loc='final', equals=phase['end'][0])
         ph.add_boundary_constraint('y', loc='final', equals=phase['end'][1])
         ph.add_boundary_constraint('z', loc='final', equals=phase['end'][2])
-        
-        # Final velocity constraints (hover at waypoints)
-        if phase['type'] == 'descent':
-            ph.add_boundary_constraint('u', loc='final', equals=0.0)
-            ph.add_boundary_constraint('v', loc='final', equals=0.0)
-            ph.add_boundary_constraint('w', loc='final', equals=0.0)
-            ph.add_boundary_constraint('roll', loc='final', equals=0.0)
-            ph.add_boundary_constraint('pitch', loc='final', equals=0.0)
-            ph.add_boundary_constraint('roll_angle_vel', loc='final', equals=0.0)
-            ph.add_boundary_constraint('pitch_angle_vel', loc='final', equals=0.0)
-            ph.add_boundary_constraint('yaw_ang_vel', loc='final', equals=0.0)
+
+        # Phase-specific path constraints for smooth flight
+        if phase['type'] == 'climb':
+            # During climb: maintain near-vertical trajectory
+            # Allow some drift but keep it bounded
+            x_start, y_start = phase['start'][0], phase['start'][1]
+            margin = 20.0  # meters of allowed drift
+            ph.add_path_constraint('x', lower=x_start - margin, upper=x_start + margin, units='m')
+            ph.add_path_constraint('y', lower=y_start - margin, upper=y_start + margin, units='m')
+            
+            # Limit attitude angles during climb for stability
+            ph.add_path_constraint('roll', lower=-0.3, upper=0.3, units='rad')  # ~17 degrees
+            ph.add_path_constraint('pitch', lower=-0.3, upper=0.3, units='rad')
+            
+        elif phase['type'] == 'cruise':
+            # During cruise: maintain altitude and smooth horizontal flight
+            z_cruise = phase['start'][2]  # Cruise altitude in NED
+            alt_tolerance = 20.0  # meters
+            ph.add_path_constraint('z', lower=z_cruise - alt_tolerance, 
+                                  upper=z_cruise + alt_tolerance, units='m')
+            
+            # Limit roll/pitch for passenger comfort and aerodynamic efficiency
+            ph.add_path_constraint('roll', lower=-0.4, upper=0.4, units='rad')  # ~23 degrees
+            ph.add_path_constraint('pitch', lower=-0.3, upper=0.3, units='rad')
+            
+            # Constrain horizontal velocities to reasonable cruise speeds
+            ph.add_path_constraint('u', lower=-20.0, upper=20.0, units='m/s')
+            ph.add_path_constraint('v', lower=-20.0, upper=20.0, units='m/s')
+            
+        elif phase['type'] == 'descent':
+            # During descent: vertical landing at waypoint
+            x_end, y_end = phase['end'][0], phase['end'][1]
+            margin = 15.0  # Tighter tolerance for landing
+            ph.add_path_constraint('x', lower=x_end - margin, upper=x_end + margin, units='m')
+            ph.add_path_constraint('y', lower=y_end - margin, upper=y_end + margin, units='m')
+            
+            # More conservative attitude limits during descent
+            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')  # ~11 degrees
+            ph.add_path_constraint('pitch', lower=-0.2, upper=0.2, units='rad')
+            
+            # Final landing - hover conditions (only for the LAST phase to avoid conflict with linking)
+            is_last_phase = (i == len(phase_info) - 1)
+            if is_last_phase:
+                ph.add_boundary_constraint('u', loc='final', equals=0.0)
+                ph.add_boundary_constraint('v', loc='final', equals=0.0)
+                ph.add_boundary_constraint('w', loc='final', equals=0.0)
+                ph.add_boundary_constraint('roll', loc='final', equals=0.0, scaler=10.0)
+                ph.add_boundary_constraint('pitch', loc='final', equals=0.0, scaler=10.0)
+                ph.add_boundary_constraint('roll_angle_vel', loc='final', equals=0.0)
+                ph.add_boundary_constraint('pitch_angle_vel', loc='final', equals=0.0)
+                ph.add_boundary_constraint('yaw_ang_vel', loc='final', equals=0.0)
         
         if obstacles:
             for obs_idx in range(len(obstacles)):
@@ -1020,7 +1065,7 @@ if __name__ == "__main__":
     )
     
     print("\nRunning optimization...")
-    dm.run_problem(p, run_driver=True, simulate=True, make_plots=False)
+    dm.run_problem(p, run_driver=True, simulate=False, make_plots=False)
     
     print("\nOptimization complete!")
 
