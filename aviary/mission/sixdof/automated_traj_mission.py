@@ -563,14 +563,36 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         # Payload is picked up at waypoint, so after descent phases
         waypoint_idx = (i // 3)  # Which waypoint we're heading to/from
         if i % 3 == 2:  # descent phase just completed
-            # After pickup
+            # After pickup - vehicle + payload
             mass = vehicle_params['mass_empty'] + vehicle_params['mass_payload']
+            has_payload = True
         else:
             # Before pickup or between waypoints
             if waypoint_idx == 0:
                 mass = vehicle_params['mass_empty']
+                has_payload = False
             else:
                 mass = vehicle_params['mass_empty'] + vehicle_params['mass_payload']
+                has_payload = True
+        
+        # Calculate moments of inertia (update when payload is picked up)
+        # For a spherical payload: I = (2/5) * m * r^2
+        if has_payload:
+            # Payload contribution (assuming spherical payload)
+            I_payload = (2.0/5.0) * vehicle_params['mass_payload'] * vehicle_params['sphere_radius']**2
+            
+            # Combined moments of inertia (vehicle + payload)
+            J_xx = vehicle_params['J_xx'] + I_payload
+            J_yy = vehicle_params['J_yy'] + I_payload
+            J_zz = vehicle_params['J_zz'] + I_payload
+            
+            if i % 3 == 2 and waypoint_idx == 0:  # First payload pickup
+                print(f"    Phase {phase_name}: Payload picked up - J increased by {I_payload:.6f} kg*m^2")
+        else:
+            # Just vehicle (no payload)
+            J_xx = vehicle_params['J_xx']
+            J_yy = vehicle_params['J_yy']
+            J_zz = vehicle_params['J_zz']
         
         # Create phase
         ph = dm.Phase(ode_class=vtolODE,
@@ -589,11 +611,11 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         
         # Add parameters
         ph.add_parameter('mass', val=mass, static_target=True, targets=['mass'], units='kg')
-        ph.add_parameter('J_xx', val=vehicle_params['J_xx'], static_target=True, 
+        ph.add_parameter('J_xx', val=J_xx, static_target=True, 
                         targets=['J_xx'], units='kg*m**2')
-        ph.add_parameter('J_yy', val=vehicle_params['J_yy'], static_target=True, 
+        ph.add_parameter('J_yy', val=J_yy, static_target=True, 
                         targets=['J_yy'], units='kg*m**2')
-        ph.add_parameter('J_zz', val=vehicle_params['J_zz'], static_target=True, 
+        ph.add_parameter('J_zz', val=J_zz, static_target=True, 
                         targets=['J_zz'], units='kg*m**2')
         ph.add_parameter('J_xz', val=vehicle_params['J_xz'], static_target=True, 
                         targets=['J_xz'], units='kg*m**2')
