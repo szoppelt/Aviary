@@ -273,18 +273,21 @@ def load_obstacles(filename):
             x_min, x_max, y_min, y_max, z_min, z_max = obs_row
             
             # Convert altitude (positive up) to NED z (negative up)
-            z_min_ned = -z_max  # Top of obstacle in NED
-            z_max_ned = -z_min  # Bottom of obstacle in NED
+            z_min_altitude = 0.0  # Building starts at ground level
+            z_max_altitude = z_max  # Building height
+
+            z_min_ned = -z_max_altitude # Top of buildling in NED (most negative)
+            z_max_ned = 0.0 # Ground level in NED
             
             obstacle = {
                 'x_min': x_min,
                 'x_max': x_max,
                 'y_min': y_min,
                 'y_max': y_max,
-                'z_min': z_min_ned,  # In NED coordinates
-                'z_max': z_max_ned,  # In NED coordinates
-                'z_min_altitude': z_min,  # Original altitude (for plotting)
-                'z_max_altitude': z_max,  # Original altitude (for plotting)
+                'z_min': z_min_ned,  # In NED coordinates (top)
+                'z_max': z_max_ned,  # In NED coordinates (ground = 0)
+                'z_min_altitude': z_min_altitude,  # Original altitude (for plotting)
+                'z_max_altitude': z_max_altitude,  # Original altitude (for plotting)
                 'x_center': (x_min + x_max) / 2,
                 'y_center': (y_min + y_max) / 2,
                 'z_center': (z_min_ned + z_max_ned) / 2,
@@ -387,45 +390,84 @@ def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_typ
     """
     if phase_type != 'cruise' or not obstacles:
         # For climb/descent or no obstacles, use straight line
-        return phase_start[0], phase_start[1]
+        return (phase_start[0] + phase_end[0]) / 2, (phase_start[1] + phase_end[1]) / 2
     
     # Check if straight line from start to end intersects any obstacle
     x_start, y_start = phase_start[0], phase_start[1]
     x_end, y_end = phase_end[0], phase_end[1]
+
+    # Default: Straight line midpoint
+    best_x = (x_start + x_end) / 2
+    best_y = (y_start + y_end) / 2
     
     for obs in obstacles:
-        # Check if the straight line path intersects obstacle in XY plane
-        # Simple check: does line segment pass through obstacle rectangle?
-        
-        # If line passes through obstacle, offset the path
-        # Route around the obstacle by going to the side
-        
-        # Find which side to go around (left/right or front/back)
-        obs_center_x = (obs['x_min'] + obs['x_max']) / 2
-        obs_center_y = (obs['y_min'] + obs['y_max']) / 2
-        
-        # Compute midpoint of path
-        mid_x = (x_start + x_end) / 2
-        mid_y = (y_start + y_end) / 2
+        # Check if straight line passes through or near obstacle
+        # Use buffered obstacle bounds
+        obs_x_min = obs['x_min'] - obs['buffer'] - 30  # Extra margin
+        obs_x_max = obs['x_max'] + obs['buffer'] + 30
+        obs_y_min = obs['y_min'] - obs['buffer'] - 30
+        obs_y_max = obs['y_max'] + obs['buffer'] + 30
         
         # Check if midpoint is near obstacle
-        near_x = (mid_x > obs['x_min'] - 20) and (mid_x < obs['x_max'] + 20)
-        near_y = (mid_y > obs['y_min'] - 20) and (mid_y < obs['y_max'] + 20)
-        
-        if near_x and near_y:
-            # Path likely intersects obstacle, add offset
-            # Go around in Y direction
-            if mid_y < obs_center_y:
-                # Pass below obstacle
-                mid_y = obs['y_min'] - obs['buffer'] - 20
-            else:
-                # Pass above obstacle  
-                mid_y = obs['y_max'] + obs['buffer'] + 20
+        if (best_x >= obs_x_min and best_x <= obs_x_max and
+            best_y >= obs_y_min and best_y <= obs_y_max):
             
-            return mid_x, mid_y
+            # Path intersects obstacle - need to route around
+            # Determine best direction to go around based on path geometry
+            
+            obs_center_x = obs['x_center']
+            obs_center_y = obs['y_center']
+            
+            # Calculate which way to go around (north/south of obstacle)
+            # Based on which has more clearance
+            path_dx = x_end - x_start
+            path_dy = y_end - y_start
+            
+            # Determine routing direction
+            # If path is mostly in X direction, route around in Y
+            # If path is mostly in Y direction, route around in X
+            
+            if abs(path_dx) > abs(path_dy):
+                # Route around in Y direction
+                # Choose north or south based on start/end positions
+                if y_start < obs_center_y and y_end < obs_center_y:
+                    # Both below obstacle - go further south
+                    best_y = obs['y_min'] - obs['buffer'] - 40
+                elif y_start > obs_center_y and y_end > obs_center_y:
+                    # Both above obstacle - go further north
+                    best_y = obs['y_max'] + obs['buffer'] + 40
+                else:
+                    # Crossing - pick side with more room
+                    dist_to_south = min(abs(y_start - obs['y_min']), abs(y_end - obs['y_min']))
+                    dist_to_north = min(abs(y_start - obs['y_max']), abs(y_end - obs['y_max']))
+                    
+                    if dist_to_south > dist_to_north:
+                        best_y = obs['y_min'] - obs['buffer'] - 40
+                    else:
+                        best_y = obs['y_max'] + obs['buffer'] + 40
+                        
+            else:
+                # Route around in X direction
+                if x_start < obs_center_x and x_end < obs_center_x:
+                    # Both left of obstacle
+                    best_x = obs['x_min'] - obs['buffer'] - 40
+                elif x_start > obs_center_x and x_end > obs_center_x:
+                    # Both right of obstacle
+                    best_x = obs['x_max'] + obs['buffer'] + 40
+                else:
+                    # Crossing
+                    dist_to_west = min(abs(x_start - obs['x_min']), abs(x_end - obs['x_min']))
+                    dist_to_east = min(abs(x_start - obs['x_max']), abs(x_end - obs['x_max']))
+                    
+                    if dist_to_west > dist_to_east:
+                        best_x = obs['x_min'] - obs['buffer'] - 40
+                    else:
+                        best_x = obs['x_max'] + obs['buffer'] + 40
+            
+            print(f"    Routing cruise around obstacle: ({best_x:.1f}, {best_y:.1f})")
+            break
     
-    # No obstacles in the way, use straight midpoint
-    return (x_start + x_end) / 2, (y_start + y_end) / 2
+    return best_x, best_y
 
 
 def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
@@ -457,7 +499,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             'mass_payload': 0.5,  # kg
             'J_xx': 0.20,  # kg*m^2
             'J_yy': 0.20,  # kg*m^2
-            'J_zz': 0.35,  # kg*m^2
+            'J_zz': 0.20,  # kg*m^2
             'J_xz': 0.0,  # kg*m^2
             'J_xy': 0.0, # kg*m^2
             'J_yz': 0.0, # kg*m^2
@@ -802,8 +844,8 @@ def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
             ]
             
             # Create collection and add to plot
-            face_collection = Poly3DCollection(faces, alpha=0.25, facecolor='red',
-                                              edgecolor='darkred', linewidth=2)
+            face_collection = Poly3DCollection(faces, alpha=0.4, facecolor='lightgray',
+                                              edgecolor='black', linewidth=1.5)
             ax.add_collection3d(face_collection)
     
     # Labels
@@ -854,8 +896,8 @@ def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
             rect = Rectangle((obs['x_min'], obs['y_min']),
                            obs['x_max'] - obs['x_min'],
                            obs['y_max'] - obs['y_min'],
-                           linewidth=2, edgecolor='darkred',
-                           facecolor='red', alpha=0.3)
+                           linewidth=1.5, edgecolor='black',
+                           facecolor='lightgray', alpha=0.5)
             ax1.add_patch(rect)
     
     ax1.set_xlabel('X Position (m)')
@@ -884,8 +926,8 @@ def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
             rect = Rectangle((obs['x_min'], obs['z_min_altitude']),
                            obs['x_max'] - obs['x_min'],
                            obs['z_max_altitude'] - obs['z_min_altitude'],
-                           linewidth=2, edgecolor='darkred',
-                           facecolor='red', alpha=0.3)
+                           linewidth=1.5, edgecolor='black',
+                           facecolor='lightgray', alpha=0.5)
             ax2.add_patch(rect)
     
     ax2.set_xlabel('X Position (m)')
@@ -913,8 +955,8 @@ def plot_trajectory(p, phase_sequence, waypoints, obstacles=[]):
             rect = Rectangle((obs['y_min'], obs['z_min_altitude']),
                            obs['y_max'] - obs['y_min'],
                            obs['z_max_altitude'] - obs['z_min_altitude'],
-                           linewidth=2, edgecolor='darkred',
-                           facecolor='red', alpha=0.3)
+                           linewidth=1.5, edgecolor='black',
+                           facecolor='lightgray', alpha=0.5)
             ax3.add_patch(rect)
     
     ax3.set_xlabel('Y Position (m)')
@@ -941,7 +983,7 @@ if __name__ == "__main__":
         'mass_payload': 0.5,
         'J_xx': 0.20,
         'J_yy': 0.20,
-        'J_zz': 0.35,
+        'J_zz': 0.20,
         'J_xz': 0.0,
         'J_xy': 0.0,
         'J_yz': 0.0,
