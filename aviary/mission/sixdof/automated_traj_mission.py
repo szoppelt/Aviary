@@ -395,18 +395,24 @@ def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_typ
     # Check if straight line from start to end intersects any obstacle
     x_start, y_start = phase_start[0], phase_start[1]
     x_end, y_end = phase_end[0], phase_end[1]
+    z_cruise = phase_start[2]
+    cruise_altitude = -z_cruise
 
     # Default: Straight line midpoint
     best_x = (x_start + x_end) / 2
     best_y = (y_start + y_end) / 2
     
     for obs in obstacles:
+        obs_height = obs['z_max_altitude']
+
+        if obs_height <= cruise_altitude:
+            continue # Can fly over 
         # Check if straight line passes through or near obstacle
         # Use buffered obstacle bounds
-        obs_x_min = obs['x_min'] - obs['buffer'] - 30  # Extra margin
-        obs_x_max = obs['x_max'] + obs['buffer'] + 30
-        obs_y_min = obs['y_min'] - obs['buffer'] - 30
-        obs_y_max = obs['y_max'] + obs['buffer'] + 30
+        obs_x_min = obs['x_min'] - obs['buffer'] - 40  # Extra margin
+        obs_x_max = obs['x_max'] + obs['buffer'] + 40
+        obs_y_min = obs['y_min'] - obs['buffer'] - 40
+        obs_y_max = obs['y_max'] + obs['buffer'] + 40
         
         # Check if midpoint is near obstacle
         if (best_x >= obs_x_min and best_x <= obs_x_max and
@@ -415,8 +421,7 @@ def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_typ
             # Path intersects obstacle - need to route around
             # Determine best direction to go around based on path geometry
             
-            obs_center_x = obs['x_center']
-            obs_center_y = obs['y_center']
+            print(f"    Obstacle blocks! Height: {obs_height:.0f} m > cruise: {cruise_altitude:.0f}")
             
             # Calculate which way to go around (north/south of obstacle)
             # Based on which has more clearance
@@ -424,47 +429,13 @@ def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_typ
             path_dy = y_end - y_start
             
             # Determine routing direction
-            # If path is mostly in X direction, route around in Y
-            # If path is mostly in Y direction, route around in X
-            
-            if abs(path_dx) > abs(path_dy):
-                # Route around in Y direction
-                # Choose north or south based on start/end positions
-                if y_start < obs_center_y and y_end < obs_center_y:
-                    # Both below obstacle - go further south
-                    best_y = obs['y_min'] - obs['buffer'] - 40
-                elif y_start > obs_center_y and y_end > obs_center_y:
-                    # Both above obstacle - go further north
-                    best_y = obs['y_max'] + obs['buffer'] + 40
-                else:
-                    # Crossing - pick side with more room
-                    dist_to_south = min(abs(y_start - obs['y_min']), abs(y_end - obs['y_min']))
-                    dist_to_north = min(abs(y_start - obs['y_max']), abs(y_end - obs['y_max']))
-                    
-                    if dist_to_south > dist_to_north:
-                        best_y = obs['y_min'] - obs['buffer'] - 40
-                    else:
-                        best_y = obs['y_max'] + obs['buffer'] + 40
-                        
+            # Route south or north? 
+            if y_start < obs['y_center']:
+                best_y = obs_y_min - 50 # Route south
+                print(f"      Routing SOUTH of building at y={best_y:.0f}m")
             else:
-                # Route around in X direction
-                if x_start < obs_center_x and x_end < obs_center_x:
-                    # Both left of obstacle
-                    best_x = obs['x_min'] - obs['buffer'] - 40
-                elif x_start > obs_center_x and x_end > obs_center_x:
-                    # Both right of obstacle
-                    best_x = obs['x_max'] + obs['buffer'] + 40
-                else:
-                    # Crossing
-                    dist_to_west = min(abs(x_start - obs['x_min']), abs(x_end - obs['x_min']))
-                    dist_to_east = min(abs(x_start - obs['x_max']), abs(x_end - obs['x_max']))
-                    
-                    if dist_to_west > dist_to_east:
-                        best_x = obs['x_min'] - obs['buffer'] - 40
-                    else:
-                        best_x = obs['x_max'] + obs['buffer'] + 40
-            
-            print(f"    Routing cruise around obstacle: ({best_x:.1f}, {best_y:.1f})")
+                best_y = obs_y_max + 50  # Route north
+                print(f"      Routing NORTH of building at y={best_y:.0f}m")
             break
     
     return best_x, best_y
@@ -633,7 +604,8 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         ph.add_state('y', rate_source='dy_dt', units='m', ref=100, defect_ref=10,
                     fix_initial=(i==0), fix_final=False)
         ph.add_state('z', rate_source='dz_dt', units='m', ref=100, defect_ref=10,
-                    fix_initial=(i==0), fix_final=False)
+                    fix_initial=(i==0), fix_final=False,
+                    lower=-300, upper=10)
         ph.add_state('u', rate_source='dx_accel', units='m/s', ref=10, defect_ref=1,
                     fix_initial=(i==0), fix_final=False)
         ph.add_state('v', rate_source='dy_accel', units='m/s', ref=10, defect_ref=1,
@@ -706,17 +678,17 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         elif phase['type'] == 'cruise':
             # During cruise: maintain altitude and smooth horizontal flight
             z_cruise = phase['start'][2]  # Cruise altitude in NED
-            alt_tolerance = 20.0  # meters
+            alt_tolerance = 10.0  # meters
             ph.add_path_constraint('z', lower=z_cruise - alt_tolerance, 
                                   upper=z_cruise + alt_tolerance, units='m')
             
             # Limit roll/pitch for passenger comfort and aerodynamic efficiency
-            ph.add_path_constraint('roll', lower=-0.4, upper=0.4, units='rad')  # ~23 degrees
-            ph.add_path_constraint('pitch', lower=-0.3, upper=0.3, units='rad')
+            ph.add_path_constraint('roll', lower=-0.5, upper=0.5, units='rad')  # ~23 degrees
+            ph.add_path_constraint('pitch', lower=-0.4, upper=0.4, units='rad')
             
             # Constrain horizontal velocities to reasonable cruise speeds
-            ph.add_path_constraint('u', lower=-20.0, upper=20.0, units='m/s')
-            ph.add_path_constraint('v', lower=-20.0, upper=20.0, units='m/s')
+            ph.add_path_constraint('u', lower=-25.0, upper=25.0, units='m/s')
+            ph.add_path_constraint('v', lower=-25.0, upper=25.0, units='m/s')
             
         elif phase['type'] == 'descent':
             # During descent: vertical landing at waypoint
