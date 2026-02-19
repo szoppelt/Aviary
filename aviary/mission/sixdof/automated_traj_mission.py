@@ -503,9 +503,11 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     
     p.driver = om.pyOptSparseDriver()
     p.driver.options["optimizer"] = "SNOPT"
-    p.driver.opt_settings['Major iteration limit'] = 1000
-    p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-4
-    p.driver.opt_settings['Major optimality tolerance'] = 1.0E-3
+    p.driver.opt_settings['Major iteration limit'] = 500
+    p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-5
+    p.driver.opt_settings['Major optimality tolerance'] = 1.0E-4
+    p.driver.opt_settings['Function precision'] = 1.0E-8
+    p.driver.opt_settings['Linesearch tolerance'] = 0.9
     p.driver.opt_settings['iSumm'] = 6
     p.driver.opt_settings['Verify level'] = 0
     p.driver.declare_coloring()
@@ -678,7 +680,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         elif phase['type'] == 'cruise':
             # During cruise: maintain altitude and smooth horizontal flight
             z_cruise = phase['start'][2]  # Cruise altitude in NED
-            alt_tolerance = 10.0  # meters
+            alt_tolerance = 15.0  # meters
             ph.add_path_constraint('z', lower=z_cruise - alt_tolerance, 
                                   upper=z_cruise + alt_tolerance, units='m')
             
@@ -687,27 +689,10 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             ph.add_path_constraint('pitch', lower=-0.4, upper=0.4, units='rad')
             
             # Constrain horizontal velocities to reasonable cruise speeds
-            ph.add_path_constraint('u', lower=-25.0, upper=25.0, units='m/s')
-            ph.add_path_constraint('v', lower=-25.0, upper=25.0, units='m/s')
-            ph.add_path_constraint('w', lower=-5.0, upper=5.0, units='m/s')
+            ph.add_path_constraint('u', lower=-30.0, upper=30.0, units='m/s')
+            ph.add_path_constraint('v', lower=-30.0, upper=30.0, units='m/s')
+            #ph.add_path_constraint('w', lower=-5.0, upper=5.0, units='m/s')
 
-            # Create "corridor" constraints toward endpoint to guide path while allowing obstacle avoidance
-            x_start, y_start = phase['start'][0], phase['start'][1]
-            x_end, y_end = phase['end'][0], phase['end'][1]
-
-            # Wide corridor (±100m) allows routing around obstacles but prevents excessive wandering
-            corridor_width = 100.0
-
-            # Apply corridor in direction of travel
-            if abs(x_end - x_start) > 50:  # Significant X movement
-                x_min_bound = min(x_start, x_end) - corridor_width
-                x_max_bound = max(x_start, x_end) + corridor_width
-                ph.add_path_constraint('x', lower=x_min_bound, upper=x_max_bound, units='m')
-            
-            if abs(y_end - y_start) > 50:  # Significant Y movement
-                y_min_bound = min(y_start, y_end) - corridor_width
-                y_max_bound = max(y_start, y_end) + corridor_width
-                ph.add_path_constraint('y', lower=y_min_bound, upper=y_max_bound, units='m')
             
         elif phase['type'] == 'descent':
             # During descent: vertical landing at waypoint
@@ -736,7 +721,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             for obs_idx in range(len(obstacles)):
                 # Constrain clearance to be >= 0 (outside obstacle)
                 ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
-                                       lower=0.0,
+                                       lower=-1.5,
                                        ref=50.0,
                                        linear=False)
             
