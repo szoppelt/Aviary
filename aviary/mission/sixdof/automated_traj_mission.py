@@ -627,11 +627,11 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         
         # Add controls
         ph.add_control('T_x', units='N', opt=True, lower=-50, upper=50, ref=10,
-                      rate_continuity=False, rate2_continuity=False)
+                      rate_continuity=True, rate2_continuity=False)
         ph.add_control('T_y', units='N', opt=True, lower=-50, upper=50, ref=10,
-                      rate_continuity=False, rate2_continuity=False)
+                      rate_continuity=True, rate2_continuity=False)
         ph.add_control('T_z', units='N', opt=True, lower=-100, upper=0, ref=10,
-                      rate_continuity=False, rate2_continuity=False)
+                      rate_continuity=True, rate2_continuity=False)
         ph.add_control('lx', targets=['lx'], opt=False, units='N*m', val=0.0)
         ph.add_control('ly', targets=['ly'], opt=False, units='N*m', val=0.0)
         ph.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
@@ -672,8 +672,8 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             ph.add_path_constraint('y', lower=y_start - margin, upper=y_start + margin, units='m')
             
             # Limit attitude angles during climb for stability
-            ph.add_path_constraint('roll', lower=-0.3, upper=0.3, units='rad')  # ~17 degrees
-            ph.add_path_constraint('pitch', lower=-0.3, upper=0.3, units='rad')
+            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')  # ~11.45 degrees
+            ph.add_path_constraint('pitch', lower=-0.2, upper=0.2, units='rad')
             
         elif phase['type'] == 'cruise':
             # During cruise: maintain altitude and smooth horizontal flight
@@ -689,6 +689,25 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             # Constrain horizontal velocities to reasonable cruise speeds
             ph.add_path_constraint('u', lower=-25.0, upper=25.0, units='m/s')
             ph.add_path_constraint('v', lower=-25.0, upper=25.0, units='m/s')
+            ph.add_path_constraint('w', lower=-5.0, upper=5.0, units='m/s')
+
+            # Create "corridor" constraints toward endpoint to guide path while allowing obstacle avoidance
+            x_start, y_start = phase['start'][0], phase['start'][1]
+            x_end, y_end = phase['end'][0], phase['end'][1]
+
+            # Wide corridor (±100m) allows routing around obstacles but prevents excessive wandering
+            corridor_width = 100.0
+
+            # Apply corridor in direction of travel
+            if abs(x_end - x_start) > 50:  # Significant X movement
+                x_min_bound = min(x_start, x_end) - corridor_width
+                x_max_bound = max(x_start, x_end) + corridor_width
+                ph.add_path_constraint('x', lower=x_min_bound, upper=x_max_bound, units='m')
+            
+            if abs(y_end - y_start) > 50:  # Significant Y movement
+                y_min_bound = min(y_start, y_end) - corridor_width
+                y_max_bound = max(y_start, y_end) + corridor_width
+                ph.add_path_constraint('y', lower=y_min_bound, upper=y_max_bound, units='m')
             
         elif phase['type'] == 'descent':
             # During descent: vertical landing at waypoint
@@ -717,7 +736,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
             for obs_idx in range(len(obstacles)):
                 # Constrain clearance to be >= 0 (outside obstacle)
                 ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
-                                       lower=-2.0,
+                                       lower=0.0,
                                        ref=50.0,
                                        linear=False)
             
