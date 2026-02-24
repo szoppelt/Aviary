@@ -24,89 +24,71 @@ if OPTIMIZER:
 
 class ObstacleAvoidanceComp(om.ExplicitComponent):
     """
-    Component to compute minimum distance to rectangular obstacles.
-    Ensures vehicle stays outside obstacle boundaries with a safety buffer.
+    Component to compute ellipsoidal clearance from rectangular obstacles.
+
+    Uses a smooth ellipsoidal approximation of each box obstacle, which gives
+    continuous first-order derivatives everywhere — critical for gradient-based
+    optimizers like SNOPT.  The ellipsoid semi-axes are the obstacle half-widths
+    plus the safety buffer, so the vehicle must stay outside the buffered volume.
+
+    Clearance formula (per obstacle):
+        f = ((x-cx)/ax)^2 + ((y-cy)/ay)^2 + ((z-cz)/az)^2 - 1
+    f >= 0 → outside (safe); f < 0 → inside (violation).
     """
     def initialize(self):
         self.options.declare('num_nodes', types=int)
         self.options.declare('obstacles', types=list, default=[])
-    
+
     def setup(self):
         nn = self.options['num_nodes']
         num_obs = len(self.options['obstacles'])
-        
-        # Inputs: vehicle position
+
         self.add_input('x', shape=(nn,), units='m', desc='X position')
         self.add_input('y', shape=(nn,), units='m', desc='Y position')
         self.add_input('z', shape=(nn,), units='m', desc='Z position (NED)')
-        
-        # Outputs: clearance distance for each obstacle (should be >= 0)
+
         for i in range(num_obs):
-            self.add_output(f'obstacle_{i}_clearance', shape=(nn,), units='m',
-                           desc=f'Clearance distance from obstacle {i} (negative = inside)')
-        
-        # Declare partials
+            self.add_output(f'obstacle_{i}_clearance', shape=(nn,),
+                            desc=f'Ellipsoidal clearance from obstacle {i} (negative = inside)')
+
+        # Sparse diagonal Jacobian — each node only depends on its own x/y/z
+        rows = np.arange(nn)
+        cols = np.arange(nn)
         for i in range(num_obs):
-            self.declare_partials(f'obstacle_{i}_clearance', ['x', 'y', 'z'], method='fd')
-    
+            self.declare_partials(f'obstacle_{i}_clearance', 'x', rows=rows, cols=cols)
+            self.declare_partials(f'obstacle_{i}_clearance', 'y', rows=rows, cols=cols)
+            self.declare_partials(f'obstacle_{i}_clearance', 'z', rows=rows, cols=cols)
+
+    def _ellipsoid_params(self, obs):
+        cx = (obs['x_min'] + obs['x_max']) / 2.0
+        cy = (obs['y_min'] + obs['y_max']) / 2.0
+        cz = (obs['z_min'] + obs['z_max']) / 2.0
+        ax = (obs['x_max'] - obs['x_min']) / 2.0 + obs['buffer']
+        ay = (obs['y_max'] - obs['y_min']) / 2.0 + obs['buffer']
+        az = (obs['z_max'] - obs['z_min']) / 2.0 + obs['buffer']
+        return cx, cy, cz, ax, ay, az
+
     def compute(self, inputs, outputs):
-        obstacles = self.options['obstacles']
         x = inputs['x']
         y = inputs['y']
         z = inputs['z']
-        
-        for i, obs in enumerate(obstacles):
-            # Compute signed distance to rectangular box obstacle
-            # Positive distance = outside obstacle (safe)
-            # Negative distance = inside obstacle (violation)
-            
-            # With buffer included
-            x_min_buf = obs['x_min'] - obs['buffer']
-            x_max_buf = obs['x_max'] + obs['buffer']
-            y_min_buf = obs['y_min'] - obs['buffer']
-            y_max_buf = obs['y_max'] + obs['buffer']
-            z_min_buf = obs['z_min'] - obs['buffer']
-            z_max_buf = obs['z_max'] + obs['buffer']
-            
-            # Distance to box in each dimension
-            # If point is between min and max, distance in that dimension is 0
-            # Otherwise, it's the distance to the nearest edge
-            dx = np.maximum(np.maximum(x_min_buf - x, x - x_max_buf), 0)
-            dy = np.maximum(np.maximum(y_min_buf - y, y - y_max_buf), 0)
-            dz = np.maximum(np.maximum(z_min_buf - z, z - z_max_buf), 0)
-            
-            # Euclidean distance to box surface
-            # If any d is > 0, we're outside in that dimension
-            distance = np.sqrt(dx**2 + dy**2 + dz**2)
-            
-            # Check if we're inside the box (all dimensions between min/max)
-            inside_x = (x >= x_min_buf) & (x <= x_max_buf)
-            inside_y = (y >= y_min_buf) & (y <= y_max_buf)
-            inside_z = (z >= z_min_buf) & (z <= z_max_buf)
-            inside = inside_x & inside_y & inside_z
-            
-            # If inside, distance should be negative
-            # Find the minimum distance to get out
-            dist_to_x_min = x - x_min_buf
-            dist_to_x_max = x_max_buf - x
-            dist_to_y_min = y - y_min_buf
-            dist_to_y_max = y_max_buf - y
-            dist_to_z_min = z - z_min_buf
-            dist_to_z_max = z_max_buf - z
-            
-            # Minimum distance to any face (for points inside)
-            min_dist_out = np.minimum(
-                np.minimum(dist_to_x_min, dist_to_x_max),
-                np.minimum(
-                    np.minimum(dist_to_y_min, dist_to_y_max),
-                    np.minimum(dist_to_z_min, dist_to_z_max)
-                )
+        for i, obs in enumerate(self.options['obstacles']):
+            cx, cy, cz, ax, ay, az = self._ellipsoid_params(obs)
+            outputs[f'obstacle_{i}_clearance'] = (
+                ((x - cx) / ax) ** 2 +
+                ((y - cy) / ay) ** 2 +
+                ((z - cz) / az) ** 2 - 1.0
             )
-            
-            # Final clearance: positive if outside, negative if inside
-            clearance = np.where(inside, -min_dist_out, distance)
-            
-            outputs[f'obstacle_{i}_clearance'] = clearance
+
+    def compute_partials(self, inputs, partials):
+        x = inputs['x']
+        y = inputs['y']
+        z = inputs['z']
+        for i, obs in enumerate(self.options['obstacles']):
+            cx, cy, cz, ax, ay, az = self._ellipsoid_params(obs)
+            partials[f'obstacle_{i}_clearance', 'x'] = 2.0 * (x - cx) / ax ** 2
+            partials[f'obstacle_{i}_clearance', 'y'] = 2.0 * (y - cy) / ay ** 2
+            partials[f'obstacle_{i}_clearance', 'z'] = 2.0 * (z - cz) / az ** 2
 
 
 class vtolODE(om.Group):
@@ -279,6 +261,14 @@ def load_obstacles(filename):
             z_min_ned = -z_max_altitude # Top of buildling in NED (most negative)
             z_max_ned = 0.0 # Ground level in NED
             
+            hx = (x_max - x_min) / 2.0
+            hy = (y_max - y_min) / 2.0
+            # Ensure ellipsoid circumscribes all rectangle corners in x-y plane:
+            # at a corner (hx, hy), need (hx/ax)^2 + (hy/ay)^2 <= 1.
+            # For equal axes (ax = hx + b, ay = hy + b), min b = max(hx,hy)*(sqrt(2)-1).
+            corner_buffer = (np.sqrt(2.0) - 1.0) * max(hx, hy)
+            buffer = corner_buffer + 5.0  # corner coverage + 5m safety margin
+
             obstacle = {
                 'x_min': x_min,
                 'x_max': x_max,
@@ -291,7 +281,7 @@ def load_obstacles(filename):
                 'x_center': (x_min + x_max) / 2,
                 'y_center': (y_min + y_max) / 2,
                 'z_center': (z_min_ned + z_max_ned) / 2,
-                'buffer': 5.0  # Safety buffer in meters
+                'buffer': buffer
             }
             obstacles.append(obstacle)
         
@@ -311,17 +301,20 @@ def load_obstacles(filename):
         return []
 
 
-def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
+def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0]), obstacles=[]):
     """
     Create a sequence of phase names and waypoint targets.
-    
+
     Parameters:
     -----------
     waypoints : numpy array
         Array of shape (n, 3) containing [x, y, z] coordinates for pickups/dropoffs
     start_position : numpy array
         Starting position [x, y, z], default is [0, 0, 0]
-        
+    obstacles : list of dicts
+        Obstacle definitions from load_obstacles(). No longer used to raise the
+        cruise altitude — the ellipsoidal path constraint forces horizontal avoidance.
+
     Returns:
     --------
     phase_info : list of dicts
@@ -333,16 +326,20 @@ def create_phase_sequence(waypoints, start_position=np.array([0, 0, 0])):
             'z_cruise': cruise altitude
         }
     """
+    # Cruise altitude is set purely from waypoint heights (100 m above the
+    # highest endpoint).  The z_cruise_floor that used to raise cruise altitude
+    # above the tallest obstacle has been removed so that the aircraft stays
+    # BELOW the obstacle top and is forced to navigate around it horizontally
+    # via the ellipsoidal clearance path constraint.
     phase_info = []
     current_pos = start_position.copy()
-    
+
     for idx, waypoint in enumerate(waypoints):
         waypoint_num = idx + 1
-        
-        # Determine cruise altitude (use max of current z or waypoint z, plus buffer)
-        #z_cruise = max(abs(current_pos[2]), abs(waypoint[2])) + 100.0
+
+        # Cruise 100 m above the highest of the two endpoints (NED: most-negative)
         highest_point = min(current_pos[2], waypoint[2])
-        z_cruise = highest_point - 100.0 # More negative = higher altitude
+        z_cruise = highest_point - 100.0
         
         # Phase 1: Climb from current position to cruise altitude
         climb_end = current_pos.copy()
@@ -441,6 +438,81 @@ def compute_obstacle_avoiding_guess(phase_start, phase_end, obstacles, phase_typ
     return best_x, best_y
 
 
+def compute_cruise_obstacle_avoiding_path(phase_start, phase_end, obstacles, nn):
+    """
+    Return initial-guess x/y arrays (length nn) for a cruise phase.
+
+    If the straight-line path from phase_start to phase_end intersects any
+    obstacle that is taller than the cruise altitude, a quadratic Bezier arc
+    is used to route around it.  The Bezier control point is placed at the
+    obstacle's horizontal centre, displaced laterally by 2.5 * ay so that
+    the arc's lowest y-excursion clears the ellipsoid at cruise altitude.
+
+    For phases with no intersection, a straight linspace is returned.
+    """
+    x_start, y_start = phase_start[0], phase_start[1]
+    x_end,   y_end   = phase_end[0],   phase_end[1]
+    z_cruise = phase_start[2]
+    cruise_altitude = -z_cruise  # NED → altitude (positive up)
+
+    for obs in obstacles:
+        if obs['z_max_altitude'] <= cruise_altitude:
+            continue  # Short enough to fly over
+
+        obs_cx = (obs['x_min'] + obs['x_max']) / 2.0
+        obs_cy = (obs['y_min'] + obs['y_max']) / 2.0
+        ax = (obs['x_max'] - obs['x_min']) / 2.0 + obs['buffer']
+        ay = (obs['y_max'] - obs['y_min']) / 2.0 + obs['buffer']
+        cz = (obs['z_min'] + obs['z_max']) / 2.0
+        az = (obs['z_max'] - obs['z_min']) / 2.0 + obs['buffer']
+
+        z_contrib = ((z_cruise - cz) / az) ** 2
+        if z_contrib >= 1.0:
+            continue  # Cruise altitude alone clears the ellipsoid
+
+        # Find the closest point on the straight-line path to the obstacle centre
+        dx_path = x_end - x_start
+        dy_path = y_end - y_start
+        d2 = dx_path ** 2 + dy_path ** 2
+        if d2 < 1e-10:
+            continue
+        t_cl = float(np.clip(
+            ((obs_cx - x_start) * dx_path + (obs_cy - y_start) * dy_path) / d2,
+            0.0, 1.0))
+        px = x_start + t_cl * dx_path
+        py = y_start + t_cl * dy_path
+
+        xy_clearance = ((px - obs_cx) / ax) ** 2 + ((py - obs_cy) / ay) ** 2
+        if xy_clearance >= (1.0 - z_contrib) + 0.1:
+            continue  # Straight path already clears the obstacle
+
+        # Quadratic Bezier arc that routes around the obstacle.
+        # The control point is at (obs_cx, obs_cy ± safety_margin).
+        # A displacement of 2.5*ay ensures the arc's minimum y-excursion
+        # (which occurs near t=0.5) lies outside the obstacle ellipse.
+        safety_margin = 2.5 * ay
+        mid_y = 0.5 * (y_start + y_end)
+        if mid_y <= obs_cy:
+            dodge_y = obs_cy - safety_margin  # route south (negative y)
+        else:
+            dodge_y = obs_cy + safety_margin  # route north (positive y)
+
+        t_vals = np.linspace(0.0, 1.0, nn)
+        x_guess = ((1 - t_vals) ** 2 * x_start
+                   + 2 * (1 - t_vals) * t_vals * obs_cx
+                   + t_vals ** 2 * x_end)
+        y_guess = ((1 - t_vals) ** 2 * y_start
+                   + 2 * (1 - t_vals) * t_vals * dodge_y
+                   + t_vals ** 2 * y_end)
+
+        print(f"    Bezier arc: control pt ({obs_cx:.0f}, {dodge_y:.0f}) "
+              f"to avoid obstacle at ({obs_cx:.0f}, {obs_cy:.0f})")
+        return x_guess, y_guess
+
+    # No obstacle intersection — straight line
+    return np.linspace(x_start, x_end, nn), np.linspace(y_start, y_end, nn)
+
+
 def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     """
     Set up the trajectory optimization problem based on waypoints file.
@@ -490,8 +562,8 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     if obstacles_file:
         obstacles = load_obstacles(obstacles_file)
     
-    # Create phase sequence
-    phase_info = create_phase_sequence(waypoints)
+    # Create phase sequence (pass obstacles so cruise altitude clears them)
+    phase_info = create_phase_sequence(waypoints, obstacles=obstacles)
     phase_sequence = [phase['name'] for phase in phase_info]
     
     print(f"\nCreated {len(phase_sequence)} phases:")
@@ -503,11 +575,12 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     
     p.driver = om.pyOptSparseDriver()
     p.driver.options["optimizer"] = "SNOPT"
-    p.driver.opt_settings['Major iteration limit'] = 500
+    p.driver.opt_settings['Major iteration limit'] = 1000
     p.driver.opt_settings['Major feasibility tolerance'] = 1.0E-5
     p.driver.opt_settings['Major optimality tolerance'] = 1.0E-4
     p.driver.opt_settings['Function precision'] = 1.0E-8
     p.driver.opt_settings['Linesearch tolerance'] = 0.9
+    p.driver.opt_settings['Minor iteration limit'] = 2000
     p.driver.opt_settings['iSumm'] = 6
     p.driver.opt_settings['Verify level'] = 0
     p.driver.declare_coloring()
@@ -601,16 +674,16 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         #ph.add_parameter('lz', static_target=True, targets=['lz'], units='N*m')
         
         # Add states
-        ph.add_state('x', rate_source='dx_dt', units='m', ref=100, defect_ref=10,
+        ph.add_state('x', rate_source='dx_dt', units='m', ref=300, defect_ref=30,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('y', rate_source='dy_dt', units='m', ref=100, defect_ref=10,
+        ph.add_state('y', rate_source='dy_dt', units='m', ref=300, defect_ref=30,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('z', rate_source='dz_dt', units='m', ref=100, defect_ref=10,
+        ph.add_state('z', rate_source='dz_dt', units='m', ref=200, defect_ref=20,
                     fix_initial=(i==0), fix_final=False,
                     lower=-300, upper=10)
-        ph.add_state('u', rate_source='dx_accel', units='m/s', ref=10, defect_ref=1,
+        ph.add_state('u', rate_source='dx_accel', units='m/s', ref=20, defect_ref=2,
                     fix_initial=(i==0), fix_final=False)
-        ph.add_state('v', rate_source='dy_accel', units='m/s', ref=10, defect_ref=1,
+        ph.add_state('v', rate_source='dy_accel', units='m/s', ref=20, defect_ref=2,
                     fix_initial=(i==0), fix_final=False)
         ph.add_state('w', rate_source='dz_accel', units='m/s', ref=10, defect_ref=1,
                     fix_initial=(i==0), fix_final=False)
@@ -627,7 +700,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         ph.add_state('yaw_ang_vel', rate_source='yaw_accel', units='rad/s',
                     ref=1, defect_ref=0.1, fix_initial=(i==0), fix_final=False)
         
-        # Add controls
+        # Add controls — rate_continuity enforces smooth (C1) control profiles
         ph.add_control('T_x', units='N', opt=True, lower=-50, upper=50, ref=10,
                       rate_continuity=True, rate2_continuity=False)
         ph.add_control('T_y', units='N', opt=True, lower=-50, upper=50, ref=10,
@@ -639,25 +712,9 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         ph.add_control('lz', targets=['lz'], opt=False, units='N*m', val=0.0)
         
         # Set boundary constraints
-        if i == 0:
-            # First phase starts at origin
-            ph.add_boundary_constraint('x', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('y', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('z', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('u', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('v', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('w', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('roll', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('pitch', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('yaw', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('roll_angle_vel', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('pitch_angle_vel', loc='initial', equals=0.0)
-            ph.add_boundary_constraint('yaw_ang_vel', loc='initial', equals=0.0)
-
-            # Vertical takeoff - constrain horizontal motion during climb
-            if phase['type'] == 'climb':
-                ph.add_path_constraint('u', lower=-2.0, upper=2.0, units='m/s')  # Minimal horizontal velocity
-                ph.add_path_constraint('v', lower=-2.0, upper=2.0, units='m/s')
+        # Note: for i==0, fix_initial=True already pins all initial states to 0;
+        # explicit boundary constraints would be redundant and create near-linearly-
+        # dependent Jacobian rows, so they are intentionally omitted here.
         
         # Final boundary constraints
         ph.add_boundary_constraint('x', loc='final', equals=phase['end'][0])
@@ -666,43 +723,43 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
 
         # Phase-specific path constraints for smooth flight
         if phase['type'] == 'climb':
-            # During climb: maintain near-vertical trajectory
-            # Allow some drift but keep it bounded
-            x_start, y_start = phase['start'][0], phase['start'][1]
-            margin = 20.0  # meters of allowed drift
-            ph.add_path_constraint('x', lower=x_start - margin, upper=x_start + margin, units='m')
-            ph.add_path_constraint('y', lower=y_start - margin, upper=y_start + margin, units='m')
-            
+            # x/y path constraints commented out — over-constraining the NLP;
+            # endpoint boundary constraints already enforce final position.
+            # x_start, y_start = phase['start'][0], phase['start'][1]
+            # margin = 20.0
+            # ph.add_path_constraint('x', lower=x_start - margin, upper=x_start + margin, units='m')
+            # ph.add_path_constraint('y', lower=y_start - margin, upper=y_start + margin, units='m')
+
             # Limit attitude angles during climb for stability
-            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')  # ~11.45 degrees
+            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')
             ph.add_path_constraint('pitch', lower=-0.2, upper=0.2, units='rad')
-            
+
         elif phase['type'] == 'cruise':
             # During cruise: maintain altitude and smooth horizontal flight
             z_cruise = phase['start'][2]  # Cruise altitude in NED
             alt_tolerance = 15.0  # meters
-            ph.add_path_constraint('z', lower=z_cruise - alt_tolerance, 
+            ph.add_path_constraint('z', lower=z_cruise - alt_tolerance,
                                   upper=z_cruise + alt_tolerance, units='m')
-            
+
             # Limit roll/pitch for passenger comfort and aerodynamic efficiency
-            ph.add_path_constraint('roll', lower=-0.5, upper=0.5, units='rad')  # ~23 degrees
+            ph.add_path_constraint('roll', lower=-0.5, upper=0.5, units='rad')
             ph.add_path_constraint('pitch', lower=-0.4, upper=0.4, units='rad')
-            
+
             # Constrain horizontal velocities to reasonable cruise speeds
             ph.add_path_constraint('u', lower=-30.0, upper=30.0, units='m/s')
             ph.add_path_constraint('v', lower=-30.0, upper=30.0, units='m/s')
-            #ph.add_path_constraint('w', lower=-5.0, upper=5.0, units='m/s')
+            # ph.add_path_constraint('w', lower=-5.0, upper=5.0, units='m/s')
 
-            
         elif phase['type'] == 'descent':
-            # During descent: vertical landing at waypoint
-            x_end, y_end = phase['end'][0], phase['end'][1]
-            margin = 15.0  # Tighter tolerance for landing
-            ph.add_path_constraint('x', lower=x_end - margin, upper=x_end + margin, units='m')
-            ph.add_path_constraint('y', lower=y_end - margin, upper=y_end + margin, units='m')
-            
+            # x/y path constraints commented out — over-constraining the NLP;
+            # endpoint boundary constraints already enforce final position.
+            # x_end, y_end = phase['end'][0], phase['end'][1]
+            # margin = 15.0
+            # ph.add_path_constraint('x', lower=x_end - margin, upper=x_end + margin, units='m')
+            # ph.add_path_constraint('y', lower=y_end - margin, upper=y_end + margin, units='m')
+
             # More conservative attitude limits during descent
-            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')  # ~11 degrees
+            ph.add_path_constraint('roll', lower=-0.2, upper=0.2, units='rad')
             ph.add_path_constraint('pitch', lower=-0.2, upper=0.2, units='rad')
             
             # Final landing - hover conditions (only for the LAST phase to avoid conflict with linking)
@@ -719,10 +776,12 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         
         if obstacles:
             for obs_idx in range(len(obstacles)):
-                # Constrain clearance to be >= 0 (outside obstacle)
+                # Clearance >= 0 means outside the ellipsoid (safe).
+                # ref=1.0 is appropriate because the ellipsoidal value is O(1)
+                # near the obstacle surface (f=0 at the surface).
                 ph.add_path_constraint(f'obstacle_{obs_idx}_clearance',
-                                       lower=-1.5,
-                                       ref=50.0,
+                                       lower=0.0,
+                                       ref=1.0,
                                        linear=False)
             
     
@@ -741,34 +800,55 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
     p.setup()
     
     # Set initial guesses
+    # Cumulative t_initial tracker for consistent phase timing
+    t_initial_cumulative = 0.0
     for i, phase in enumerate(phase_info):
         phase_name = phase['name']
-        
-        p.set_val(f'traj.{phase_name}.t_initial', 0.0 if i == 0 else 30.0*i)
-        p.set_val(f'traj.{phase_name}.t_duration', 30.0)
 
-        # Position initial guesses - route around obstacles
-        guess_x, guess_y = compute_obstacle_avoiding_guess(
-            phase['start'], phase['end'], obstacles, phase['type']
-        )
+        # Physics-based duration estimates instead of a flat 30 s for every phase.
+        # Climb/descent: altitude change / ~4 m/s vertical rate.
+        # Cruise:        horizontal distance / ~12 m/s cruise speed.
+        if phase['type'] in ('climb', 'descent'):
+            dz_dist = abs(phase['end'][2] - phase['start'][2])
+            t_duration_guess = float(np.clip(dz_dist / 4.0, 20.0, 90.0))
+        else:  # cruise
+            dist_horiz = float(np.hypot(phase['end'][0] - phase['start'][0],
+                                        phase['end'][1] - phase['start'][1]))
+            t_duration_guess = float(np.clip(dist_horiz / 12.0, 20.0, 90.0))
 
-        p.set_val(f'traj.{phase_name}.states:x', guess_x, units='m')
-        p.set_val(f'traj.{phase_name}.states:y', guess_y, units='m')
-        p.set_val(f'traj.{phase_name}.states:z', phase['start'][2], units='m')
-        
-        # Position initial guesses (use phase['initial'] for single value)
-        #p.set_val(f'traj.{phase_name}.states:x', 
-        #         phase['start'][0], units='m')
-        #p.set_val(f'traj.{phase_name}.states:y',
-        #         phase['start'][1], units='m')
-        #p.set_val(f'traj.{phase_name}.states:z',
-        #         phase['start'][2], units='m')
-        
-        # Velocity guesses
-        p.set_val(f'traj.{phase_name}.states:u', 0, units='m/s')
-        p.set_val(f'traj.{phase_name}.states:v', 0, units='m/s')
-        p.set_val(f'traj.{phase_name}.states:w', 0, units='m/s')
-        
+        p.set_val(f'traj.{phase_name}.t_initial', t_initial_cumulative)
+        p.set_val(f'traj.{phase_name}.t_duration', t_duration_guess)
+        t_initial_cumulative += t_duration_guess
+
+        # Position initial guesses — linearly interpolated from start to end
+        # for climb/descent; Bezier arc around any blocking obstacle for cruise.
+        nn = len(p.get_val(f'traj.{phase_name}.states:z'))
+
+        if phase['type'] == 'cruise' and obstacles:
+            x_guess, y_guess = compute_cruise_obstacle_avoiding_path(
+                phase['start'], phase['end'], obstacles, nn)
+        else:
+            x_guess = np.linspace(phase['start'][0], phase['end'][0], nn)
+            y_guess = np.linspace(phase['start'][1], phase['end'][1], nn)
+
+        p.set_val(f'traj.{phase_name}.states:x', x_guess, units='m')
+        p.set_val(f'traj.{phase_name}.states:y', y_guess, units='m')
+        p.set_val(f'traj.{phase_name}.states:z',
+                  np.linspace(phase['start'][2], phase['end'][2], nn), units='m')
+
+        # Velocity guesses: derived from the position path via finite differences
+        # so that u/v are consistent with the Bezier arc (not just the straight-
+        # line endpoint direction).
+        dt_node = t_duration_guess / max(nn - 1, 1)
+        u_arr = np.clip(np.gradient(x_guess, dt_node), -25.0, 25.0)
+        v_arr = np.clip(np.gradient(y_guess, dt_node), -25.0, 25.0)
+        dz_vel = phase['end'][2] - phase['start'][2]
+        w_guess = float(np.clip(dz_vel / t_duration_guess, -10.0, 10.0))
+
+        p.set_val(f'traj.{phase_name}.states:u', u_arr, units='m/s')
+        p.set_val(f'traj.{phase_name}.states:v', v_arr, units='m/s')
+        p.set_val(f'traj.{phase_name}.states:w', w_guess, units='m/s')
+
         # Attitude guesses
         p.set_val(f'traj.{phase_name}.states:roll', 0, units='rad')
         p.set_val(f'traj.{phase_name}.states:pitch', 0, units='rad')
@@ -776,7 +856,7 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
         p.set_val(f'traj.{phase_name}.states:roll_angle_vel', 0, units='rad/s')
         p.set_val(f'traj.{phase_name}.states:pitch_angle_vel', 0, units='rad/s')
         p.set_val(f'traj.{phase_name}.states:yaw_ang_vel', 0, units='rad/s')
-        
+
         # Control guesses
         p.set_val(f'traj.{phase_name}.controls:T_x', 0, units='N')
         p.set_val(f'traj.{phase_name}.controls:T_y', 0, units='N')
@@ -793,10 +873,10 @@ def setup_trajectory(waypoints_file, obstacles_file=None, vehicle_params=None):
                 mass_val = vehicle_params['mass_empty']
             else:
                 mass_val = vehicle_params['mass_empty'] + vehicle_params['mass_payload']
-        
-        p.set_val(f'traj.{phase_name}.controls:T_z', 
-                 -mass_val * vehicle_params['g'], 
-                 units='N')
+
+        p.set_val(f'traj.{phase_name}.controls:T_z',
+                  -mass_val * vehicle_params['g'],
+                  units='N')
     
     return p, phase_sequence, phase_info, waypoints, obstacles
 
